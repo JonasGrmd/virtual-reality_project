@@ -4,6 +4,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+//include bullet
+#include <src/btBulletCollisionCommon.h>
+#include <src/btBulletDynamicsCommon.h>
+
 #include <glm/glm.hpp>
 #include<glm/gtc/matrix_transform.hpp>
 #include<glm/gtc/type_ptr.hpp>
@@ -74,19 +78,52 @@ void APIENTRY glDebugOutput(GLenum source,
 }
 #endif
 
-Camera camera(glm::vec3(0.0, 0.0, 0.1));
+Camera camera(glm::vec3(0.0, 10.0, 50.0));
 
+btDynamicsWorld* world;
+btDispatcher* dispatcher;
+btCollisionConfiguration* collisionConfig;
+btBroadphaseInterface* broadphase;
+btConstraintSolver* solver;
+
+btRigidBody* addSphere(float rad, float x, float y, float z, float mass) {
+	btTransform t;
+	t.setIdentity();
+	t.setOrigin(btVector3(x, y, z));
+	btSphereShape* sphere = new btSphereShape(rad);
+	btVector3 inertia(btVector3(0.0, 0.0, 0.0));
+	if (mass != 0.0) sphere->calculateLocalInertia(mass, inertia);
+	btMotionState* motion = new btDefaultMotionState(t);
+	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, sphere, inertia);
+	btRigidBody* body = new btRigidBody(info);
+	world->addRigidBody(body);
+	return body;	
+}
+
+void init() {
+	//Initialize the bullet world
+	collisionConfig = new btDefaultCollisionConfiguration();
+	dispatcher = new btCollisionDispatcher(collisionConfig);
+	broadphase = new btDbvtBroadphase();
+	solver = new btSequentialImpulseConstraintSolver();
+	world = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfig);
+	world->setGravity(btVector3(0.0, -10.0, 0.0));
+
+	//Creating a static plane for the ground
+	btTransform t;
+	t.setIdentity();
+	t.setOrigin(btVector3(0.0,0.0,0.0));
+	btStaticPlaneShape* plane = new btStaticPlaneShape(btVector3(0.0,1.0,0.0),0.0);
+	btMotionState* motion = new btDefaultMotionState(t);
+	btRigidBody::btRigidBodyConstructionInfo info(0.0, motion, plane);
+	btRigidBody* body = new btRigidBody(info);
+	world->addRigidBody(body);
+};
 
 int main(int argc, char* argv[])
 {
-	std::cout << "Welcome to exercice 7: " << std::endl;
-	std::cout << "Complete light equation and attenuation factor\n"
-		"Implement the complete light equation.\n"
-		"Make the light move with time closer and further of the model.\n"
-		"Put the attenuation factor into the calculations\n"
-		"\n";
-
-
+	//Initialize Bullet world
+	init();
 	//Boilerplate
 	//Create the OpenGL context 
 	if (!glfwInit()) {
@@ -132,6 +169,8 @@ int main(int argc, char* argv[])
 	}
 #endif
 
+	//Initialize the bullet world
+
 	const std::string sourceV = "#version 330 core\n"
 		"in vec3 position; \n"
 		"in vec2 tex_coords; \n"
@@ -150,7 +189,7 @@ int main(int argc, char* argv[])
 		"vec4 frag_coord = M*vec4(position, 1.0); \n"
 		"gl_Position = P*V*frag_coord; \n"
 		
-		"v_normal = vec3(itM * vec4(normal, 1.0)); \n"
+		"v_normal = normalize(vec3(itM * vec4(normal, 1.0))); \n"
 		"v_frag_coord = frag_coord.xyz; \n"
 		"\n" 
 		"}\n";
@@ -179,14 +218,19 @@ int main(int argc, char* argv[])
 		//Compute each of the component needed (specular light, diffuse light, attenuation,...)
 		"vec3 L = normalize(u_light_pos - v_frag_coord);\n"
 		"vec3 N = v_normal;\n"
-		"vec3 R = normalize(reflect(-L,N));\n"
+		"vec3 R = (reflect(-L,N));\n"
 		"vec3 V = normalize(u_view_pos - v_frag_coord);\n"
-		"float specular = u_specular*pow(max(dot(R,V),0),u_shininess);\n"
-		"float attenuation = 1.0/pow(length(u_light_pos - v_frag_coord),1);\n"
+
+		"vec3 ambient = u_ambient*materialColour;\n"
+		"float diff = max(dot(N,L), 0.0);\n"
+		"vec3 diffuse = diff*lightColour;\n"
+		"float spec = pow(max(dot(R,V),0.0),u_shininess);\n"
+		"vec3 specular = u_specular*spec*lightColour;\n"
+
+		"float attenuation = 1.0/pow(length(u_light_pos - v_frag_coord),2);\n"
 
 		//Compute the value for the light 
-		"float light = (u_diffuse + specular)*attenuation*max(dot(L,N),0);\n"
-		"FragColor = vec4((materialColour*(u_ambient + u_emissive)+ lightColour*vec3(light))/2.0, 1.0); \n"
+		"FragColor = vec4(materialColour*(ambient + u_emissive + (diffuse + specular)*attenuation), 1.0); \n"
 		"} \n";
 
 	Shader shader(sourceV, sourceF);
@@ -207,66 +251,95 @@ int main(int argc, char* argv[])
 		}
 	};
 
-	//Object
-	char path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
-	Object sphere1(path);
-	sphere1.makeObject(shader, false);
+	//Bullet Object
+	btRigidBody* sphere = addSphere(1.0, 0.0, 20.0, 0.0, 1.0);
+	btTransform t;
+	sphere->getMotionState()->getWorldTransform(t);
+	btVector3 sphere_translation = t.getOrigin();
 
+	//OpenGL Sphere
+
+	//Path and properties definition
+	char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
+	Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0);
+	sphere_render.makeObject(shader, false);
+	glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.0, 0.0);
+
+	//Model matrix definition
 	glm::mat4 model = glm::mat4(1.0);
-	model = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
+	model = glm::translate(model, glm::vec3(sphere_translation[0], sphere_translation[1], sphere_translation[2]));
 	model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
-	glm::mat4 inverseModel = glm::transpose( glm::inverse(model));
+	glm::mat4 inverse_model = glm::transpose( glm::inverse(model));
 
-	glm::vec3 materialColour = glm::vec3(1.0, 0.0, 0.0);
-	float object_shininess = 32.0;
-	float object_diffusion = 1.0;
-	float object_specularity = 0.8;
-	float object_emission = 0.0;
+	
+	//OpenGL Plane
 
-	//Light object
-	Object light(path);
+	//Path and properties definition
+	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
+	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0);
+	plane.makeObject(shader, false);
+	glm::vec3 plane_materialColour = glm::vec3(0.9, 0.6, 0.2);
+
+	//Model matrix definition
+	glm::mat4 plane_model = glm::mat4(1.0);
+	plane_model = glm::translate(plane_model, glm::vec3(0.0, 0.5, 0.0));
+	plane_model = glm::scale(plane_model, glm::vec3(10.0, 10.0, 10.0));
+	glm::mat4 inverse_plane_model = glm::transpose(glm::inverse(plane_model));
+
+
+	//OpenGL Light object
+
+	//Path and properties definition
+	Object light(sphere_path, 1.0, 0.8, 10.0, 1.0);
 	light.makeObject(shader, false);
+	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
 
+	//Model matrix definition
 	glm::mat4 light_model = glm::mat4(1.0);
-	glm::vec3 light_pos = glm::vec3(1.0, 2.0, 0.0);
+	//Definition of a variable for its position since it's gonna move
+	glm::vec3 light_pos = glm::vec3(1.0, 2.0, 0.0); 
 	light_model = glm::translate(light_model, light_pos);
 	light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
+	glm::mat4 inverse_light_model = glm::transpose(glm::inverse(light_model));
 
-	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
-	float light_shininess = 32.0;
-	float light_diffusion = 1.0;
-	float light_specularity = 3.0;
-	float light_emission = 10.0;
-
+	
 	//Ambient light
-	float ambient = 0.1;
+	float ambient = 0.3;
 
 	//Camera matrices
 	glm::mat4 view = camera.GetViewMatrix();
 	glm::mat4 perspective = camera.GetProjectionMatrix();
 
-
 	//Rendering
-
 	glfwSwapInterval(1);
-
 	shader.use();
-	
 	shader.setFloat("u_ambient", ambient);
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
 		view = camera.GetViewMatrix();
+
 		glfwPollEvents();
 		double now = glfwGetTime();
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		//Bullet simulation
+		world->stepSimulation(1/60.0); //Stepping simulation for one frame
+
+		sphere->getMotionState()->getWorldTransform(t); //Get the position of the bullet object
+		sphere_translation = t.getOrigin();				//and put it the sphere_translation vector
+		//Changing the model matrix following the sphere_translation
+		model = glm::mat4(1.0);							
+		model = glm::translate(model, glm::vec3(sphere_translation[0], sphere_translation[1], sphere_translation[2]));
+		model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
+		inverse_model = glm::transpose(glm::inverse(model));
 
 		shader.use();
 
 		//What information do you need to gave to the shader about the light ?
-		light_pos = glm::vec3(std::cos(now), 2.0, 2 * std::sin(now));
+		light_pos = glm::vec3(1*std::cos(now), 2.0, 2 * std::sin(now));
 		shader.setVector3f("u_light_pos", light_pos);
 		shader.setVector3f("lightColour", lightColour);
 
@@ -277,13 +350,23 @@ int main(int argc, char* argv[])
 
 		//Object info
 		shader.setMatrix4("M", model);
-		shader.setMatrix4("itM", inverseModel);
-		shader.setVector3f("materialColour", materialColour);
-		shader.setFloat("u_diffuse", object_diffusion);
-		shader.setFloat("u_specular", object_specularity);
-		shader.setFloat("u_shininess", object_shininess);
-		shader.setFloat("u_emissive", object_emission);
-		sphere1.draw();
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", sphere_materialColour);
+		shader.setFloat("u_diffuse", sphere_render.diffusion_coefficient);
+		shader.setFloat("u_specular", sphere_render.specularity_coefficient);
+		shader.setFloat("u_shininess", sphere_render.shininess_coefficient);
+		shader.setFloat("u_emissive", sphere_render.emission_coefficient);
+		sphere_render.draw();
+
+		//Plane info
+		shader.setMatrix4("M", plane_model);
+		shader.setMatrix4("itM", inverse_plane_model);
+		shader.setVector3f("materialColour", plane_materialColour);
+		shader.setFloat("u_diffuse", plane.diffusion_coefficient);
+		shader.setFloat("u_specular", plane.specularity_coefficient);
+		shader.setFloat("u_shininess", plane.shininess_coefficient);
+		shader.setFloat("u_emissive", plane.emission_coefficient);
+		plane.draw();
 
 		//Light object info
 		light_model = glm::translate(glm::mat4(1.0), light_pos);
@@ -291,10 +374,10 @@ int main(int argc, char* argv[])
 		shader.setMatrix4("M", light_model);
 		shader.setMatrix4("itM", glm::transpose(glm::inverse(light_model)));
 		shader.setVector3f("materialColour", lightColour);
-		shader.setFloat("u_diffuse", light_diffusion);
-		shader.setFloat("u_specular", light_specularity);
-		shader.setFloat("u_shininess", light_shininess);
-		shader.setFloat("u_emissive", light_emission);
+		shader.setFloat("u_diffuse", light.diffusion_coefficient);
+		shader.setFloat("u_specular", light.specularity_coefficient);
+		shader.setFloat("u_shininess", light.shininess_coefficient);
+		shader.setFloat("u_emissive", light.emission_coefficient);
 		light.draw();
 		
 		fps(now);
@@ -302,6 +385,10 @@ int main(int argc, char* argv[])
 	}
 
 	//clean up ressource
+	delete dispatcher;
+	delete collisionConfig;
+	delete solver;
+	delete broadphase;
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
