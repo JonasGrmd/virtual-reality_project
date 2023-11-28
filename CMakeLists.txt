@@ -2,7 +2,7 @@
 #Heavily inspired from https://github.com/Polytonic/Glitter/blob/master/CMakeLists.txt
 
 #project setup
-project(infoh502-cpp)
+project(VR_project)
 
 #set the minimal version of cmake and the minimal version of the c++ language
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)

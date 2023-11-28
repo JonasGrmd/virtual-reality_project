@@ -41,13 +41,25 @@ public:
 
 	int numVertices;
 
+	float diffusion_coefficient;
+	float specularity_coefficient;
+	float shininess_coefficient;
+	float emission_coefficient;
+
 	GLuint VBO, VAO;
 
 	glm::mat4 model = glm::mat4(1.0);
 
 
-	Object(const char* path) {
+	Object(const char* path, float diffusion, float specularity, float shininess, float emmision) {
 
+		//Material properties definition
+		diffusion_coefficient = diffusion;
+		specularity_coefficient = specularity;
+		shininess_coefficient = shininess;
+		emission_coefficient = emmision;
+
+		//.obj file reading and data stocking
 		std::ifstream infile(path);
 		//TODO Error management
 		std::string line;
