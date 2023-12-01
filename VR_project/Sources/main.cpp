@@ -169,8 +169,6 @@ int main(int argc, char* argv[])
 	}
 #endif
 
-	//Initialize the bullet world
-
 	const std::string sourceV = "#version 330 core\n"
 		"in vec3 position; \n"
 		"in vec2 tex_coords; \n"
@@ -252,54 +250,47 @@ int main(int argc, char* argv[])
 	};
 
 	//Bullet Object
-	btRigidBody* sphere = addSphere(1.0, 0.0, 20.0, 0.0, 1.0);
-	btTransform t;
-	sphere->getMotionState()->getWorldTransform(t);
-	btVector3 sphere_translation = t.getOrigin();
+	float sphere_radius = 1.0;
+	btRigidBody* sphere = addSphere(sphere_radius, 0.0, 20.0, 0.0, 1.0);
 
 	//OpenGL Sphere
 
 	//Path and properties definition
 	char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
-	Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0);
+	glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.8);
+	Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
 	sphere_render.makeObject(shader, false);
-	glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.0, 0.0);
-
-	//Model matrix definition
-	glm::mat4 model = glm::mat4(1.0);
-	model = glm::translate(model, glm::vec3(sphere_translation[0], sphere_translation[1], sphere_translation[2]));
-	model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
-	glm::mat4 inverse_model = glm::transpose( glm::inverse(model));
 
 	
 	//OpenGL Plane
-
 	//Path and properties definition
 	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
-	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0);
+	glm::vec3 plane_materialColour = glm::vec3(0.8, 0.6, 0.3);
+	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0, plane_materialColour);
 	plane.makeObject(shader, false);
-	glm::vec3 plane_materialColour = glm::vec3(0.9, 0.6, 0.2);
+	
 
 	//Model matrix definition
 	glm::mat4 plane_model = glm::mat4(1.0);
-	plane_model = glm::translate(plane_model, glm::vec3(0.0, 0.5, 0.0));
-	plane_model = glm::scale(plane_model, glm::vec3(10.0, 10.0, 10.0));
+	plane_model = glm::translate(plane_model, glm::vec3(0.0, 0.0, 0.0));
+	plane_model = glm::scale(plane_model, glm::vec3(100.0, 100.0, 100.0));
 	glm::mat4 inverse_plane_model = glm::transpose(glm::inverse(plane_model));
 
 
 	//OpenGL Light object
 
 	//Path and properties definition
-	Object light(sphere_path, 1.0, 0.8, 10.0, 1.0);
+	glm::vec3 lightColour = glm::vec3(0.6, 0.8, 0.7);
+	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
 	light.makeObject(shader, false);
-	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
+	
 
 	//Model matrix definition
 	glm::mat4 light_model = glm::mat4(1.0);
 	//Definition of a variable for its position since it's gonna move
-	glm::vec3 light_pos = glm::vec3(1.0, 2.0, 0.0); 
+	glm::vec3 light_pos = glm::vec3(1.0, 1.0, 0.0); 
 	light_model = glm::translate(light_model, light_pos);
-	light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
+	light_model = glm::scale(light_model, glm::vec3(0.2, 0.2, 0.2));
 	glm::mat4 inverse_light_model = glm::transpose(glm::inverse(light_model));
 
 	
@@ -318,67 +309,38 @@ int main(int argc, char* argv[])
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
 		view = camera.GetViewMatrix();
-
 		glfwPollEvents();
 		double now = glfwGetTime();
-
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
+
 		//Bullet simulation
 		world->stepSimulation(1/60.0); //Stepping simulation for one frame
-
-		sphere->getMotionState()->getWorldTransform(t); //Get the position of the bullet object
-		sphere_translation = t.getOrigin();				//and put it the sphere_translation vector
-		//Changing the model matrix following the sphere_translation
-		model = glm::mat4(1.0);							
-		model = glm::translate(model, glm::vec3(sphere_translation[0], sphere_translation[1], sphere_translation[2]));
-		model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
-		inverse_model = glm::transpose(glm::inverse(model));
-
+		//Using shader
 		shader.use();
 
-		//What information do you need to gave to the shader about the light ?
-		light_pos = glm::vec3(1*std::cos(now), 2.0, 2 * std::sin(now));
+		//Light movement sent to shader
+		light_pos = glm::vec3(3*std::cos(now), 1.0, 3*std::sin(now));
 		shader.setVector3f("u_light_pos", light_pos);
 		shader.setVector3f("lightColour", lightColour);
 
-		//Camera info
+		//Camera info sent to shader
 		shader.setMatrix4("V", view);
 		shader.setMatrix4("P", perspective);
 		shader.setVector3f("u_view_pos", camera.Position);
 
-		//Object info
-		shader.setMatrix4("M", model);
-		shader.setMatrix4("itM", inverse_model);
-		shader.setVector3f("materialColour", sphere_materialColour);
-		shader.setFloat("u_diffuse", sphere_render.diffusion_coefficient);
-		shader.setFloat("u_specular", sphere_render.specularity_coefficient);
-		shader.setFloat("u_shininess", sphere_render.shininess_coefficient);
-		shader.setFloat("u_emissive", sphere_render.emission_coefficient);
-		sphere_render.draw();
+		//Object drawing
+		sphere_render.draw_on_bullet_object(shader, sphere, glm::vec3(sphere_radius));
 
-		//Plane info
-		shader.setMatrix4("M", plane_model);
-		shader.setMatrix4("itM", inverse_plane_model);
-		shader.setVector3f("materialColour", plane_materialColour);
-		shader.setFloat("u_diffuse", plane.diffusion_coefficient);
-		shader.setFloat("u_specular", plane.specularity_coefficient);
-		shader.setFloat("u_shininess", plane.shininess_coefficient);
-		shader.setFloat("u_emissive", plane.emission_coefficient);
-		plane.draw();
+		//Plane drawing
+		plane.draw_without_bullet_object(shader, plane_model);
 
-		//Light object info
+		//Light drawing
 		light_model = glm::translate(glm::mat4(1.0), light_pos);
 		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
-		shader.setMatrix4("M", light_model);
-		shader.setMatrix4("itM", glm::transpose(glm::inverse(light_model)));
-		shader.setVector3f("materialColour", lightColour);
-		shader.setFloat("u_diffuse", light.diffusion_coefficient);
-		shader.setFloat("u_specular", light.specularity_coefficient);
-		shader.setFloat("u_shininess", light.shininess_coefficient);
-		shader.setFloat("u_emissive", light.emission_coefficient);
-		light.draw();
+		light.draw_without_bullet_object(shader, light_model);
 		
 		fps(now);
 		glfwSwapBuffers(window);

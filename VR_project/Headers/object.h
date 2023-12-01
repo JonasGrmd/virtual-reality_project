@@ -7,13 +7,14 @@
 #include <sstream>
 #include <vector>
 
+#include <src/btBulletCollisionCommon.h>
+#include <src/btBulletDynamicsCommon.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
 #include<glm/gtc/matrix_transform.hpp>
-
 
 /*Principe :
 * On donne le path du fichier -> on lit le fichier
@@ -45,19 +46,21 @@ public:
 	float specularity_coefficient;
 	float shininess_coefficient;
 	float emission_coefficient;
+	glm::vec3 materialColour;
 
 	GLuint VBO, VAO;
 
 	glm::mat4 model = glm::mat4(1.0);
 
 
-	Object(const char* path, float diffusion, float specularity, float shininess, float emmision) {
+	Object(const char* path, float diffusion, float specularity, float shininess, float emmision, glm::vec3 materialColour) {
 
 		//Material properties definition
-		diffusion_coefficient = diffusion;
-		specularity_coefficient = specularity;
-		shininess_coefficient = shininess;
-		emission_coefficient = emmision;
+		this->diffusion_coefficient = diffusion;
+		this->specularity_coefficient = specularity;
+		this->shininess_coefficient = shininess;
+		this->emission_coefficient = emmision;
+		this->materialColour = materialColour;
 
 		//.obj file reading and data stocking
 		std::ifstream infile(path);
@@ -207,11 +210,38 @@ public:
 
 	}
 
-	void draw() {
-
+	void draw_on_bullet_object(Shader shader, btRigidBody* body, glm::vec3 scale) {
+		btTransform t;
+		body->getMotionState()->getWorldTransform(t); //Get the position of the bullet object
+		btVector3 body_translation = t.getOrigin();	  //and put it the sphere_translation vector
+		//Changing the model matrix following the sphere_translation
+		glm::mat4 model = glm::mat4(1.0);
+		model = glm::translate(model, glm::vec3(body_translation[0], body_translation[1], body_translation[2]));
+		model = glm::scale(model, scale);
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 
+	}
+
+	void draw_without_bullet_object(Shader shader, glm::mat4 model) {
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
+		glBindVertexArray(this->VAO);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 	}
 };
 #endif
