@@ -169,70 +169,9 @@ int main(int argc, char* argv[])
 	}
 #endif
 
-	const std::string sourceV = "#version 330 core\n"
-		"in vec3 position; \n"
-		"in vec2 tex_coords; \n"
-		"in vec3 normal; \n"
-
-		"out vec3 v_frag_coord; \n"
-		"out vec3 v_normal; \n"
-
-		"uniform mat4 M; \n"
-		"uniform mat4 itM; \n"
-		"uniform mat4 V; \n"
-		"uniform mat4 P; \n"
-
-
-		" void main(){ \n"
-		"vec4 frag_coord = M*vec4(position, 1.0); \n"
-		"gl_Position = P*V*frag_coord; \n"
-		
-		"v_normal = normalize(vec3(itM * vec4(normal, 1.0))); \n"
-		"v_frag_coord = frag_coord.xyz; \n"
-		"\n" 
-		"}\n";
-
-	const std::string sourceF = "#version 330 core\n"
-		"out vec4 FragColor;\n"
-		"precision mediump float; \n"
-
-		"in vec3 v_frag_coord; \n"
-		"in vec3 v_normal; \n"
-
-		"uniform vec3 u_view_pos; \n"
-
-		//What information do you need for the light ? (position, strength, ...)
-		"uniform float u_ambient;\n"
-		"uniform float u_diffuse;\n"
-		"uniform float u_specular;\n"
-		"uniform float u_emissive; \n"
-		"uniform vec3 u_light_pos;\n"
-		"uniform vec3 lightColour;\n"
-		//What information do you need about the object ?
-		"uniform vec3 materialColour; \n"
-		"uniform float u_shininess;\n"
-
-		"void main() { \n"
-		//Compute each of the component needed (specular light, diffuse light, attenuation,...)
-		"vec3 L = normalize(u_light_pos - v_frag_coord);\n"
-		"vec3 N = v_normal;\n"
-		"vec3 R = (reflect(-L,N));\n"
-		"vec3 V = normalize(u_view_pos - v_frag_coord);\n"
-
-		"vec3 ambient = u_ambient*materialColour;\n"
-		"float diff = max(dot(N,L), 0.0);\n"
-		"vec3 diffuse = diff*lightColour;\n"
-		"float spec = pow(max(dot(R,V),0.0),u_shininess);\n"
-		"vec3 specular = u_specular*spec*lightColour;\n"
-
-		"float attenuation = 1.0/pow(length(u_light_pos - v_frag_coord),2);\n"
-
-		//Compute the value for the light 
-		"FragColor = vec4(materialColour*(ambient + u_emissive + (diffuse + specular)*attenuation), 1.0); \n"
-		"} \n";
-
-	Shader shader(sourceV, sourceF);
-
+	char fileVert[128] = PATH_TO_SHADERS "/vertexShader.txt";
+	char fileFrag[128] = PATH_TO_SHADERS "/fragmentShader.txt";
+	Shader shader(fileVert, fileFrag);
 
 	double prev = 0;
 	int deltaFrame = 0;
