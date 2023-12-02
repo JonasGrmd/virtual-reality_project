@@ -1,4 +1,5 @@
 #include<iostream>
+#include<vector>
 
 //include glad before GLFW to avoid header conflict or define "#define GLFW_INCLUDE_NONE"
 #include <glad/glad.h>
@@ -26,7 +27,7 @@ const int height = 1080;
 
 GLuint compileShader(std::string shaderCode, GLenum shaderType);
 GLuint compileProgram(GLuint vertexShader, GLuint fragmentShader);
-void processInput(GLFWwindow* window);
+void processInput(GLFWwindow* window,Shader shader);
 
 
 #ifndef NDEBUG
@@ -79,6 +80,16 @@ void APIENTRY glDebugOutput(GLenum source,
 #endif
 
 Camera camera(glm::vec3(0.0, 10.0, 50.0));
+
+std::vector<btRigidBody*> bodies_bullet;
+std::vector<Object> bodies_render;
+
+//For Bullet object
+float sphere_radius = 1.0;
+
+//Path and properties definition for OpenGL object
+char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
+glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.5);
 
 btDynamicsWorld* world;
 btDispatcher* dispatcher;
@@ -188,23 +199,25 @@ int main(int argc, char* argv[])
 		}
 	};
 
-	//Bullet Object
-	float sphere_radius = 1.0;
-	btRigidBody* sphere = addSphere(sphere_radius, 0.0, 20.0, 0.0, 1.0);
+	//Bullet Objects
 
-	//OpenGL Sphere
+	int sphere_number = 5;
+	for (int i = 0; i < 5; i++) {
+		bodies_bullet.push_back(addSphere(sphere_radius, i*0.5, i*5, 0.0, 1.0));
+	}
 
-	//Path and properties definition
-	char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
-	glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.8);
-	Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-	sphere_render.makeObject(shader, false);
+	//OpenGL Spheres
 
-	
+	for (int i = 0; i < 5; i++) {
+		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		sphere_render.makeObject(shader, false);
+		bodies_render.push_back(sphere_render);
+	}
+
 	//OpenGL Plane
 	//Path and properties definition
 	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
-	glm::vec3 plane_materialColour = glm::vec3(0.8, 0.6, 0.3);
+	glm::vec3 plane_materialColour = glm::vec3(0.3, 0.3, 1.0);
 	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0, plane_materialColour);
 	plane.makeObject(shader, false);
 	
@@ -246,7 +259,7 @@ int main(int argc, char* argv[])
 	shader.setFloat("u_ambient", ambient);
 
 	while (!glfwWindowShouldClose(window)) {
-		processInput(window);
+		processInput(window,shader);
 		view = camera.GetViewMatrix();
 		glfwPollEvents();
 		double now = glfwGetTime();
@@ -270,8 +283,10 @@ int main(int argc, char* argv[])
 		shader.setMatrix4("P", perspective);
 		shader.setVector3f("u_view_pos", camera.Position);
 
-		//Object drawing
-		sphere_render.draw_on_bullet_object(shader, sphere, glm::vec3(sphere_radius));
+		//Objects drawing
+		for (int i = 0; i < bodies_bullet.size(); i++) {
+			bodies_render[i].draw_on_bullet_object(shader, bodies_bullet[i], glm::vec3(sphere_radius));
+		}
 
 		//Plane drawing
 		plane.draw_without_bullet_object(shader, plane_model);
@@ -296,9 +311,39 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+// Random Number generator :
 
-void processInput(GLFWwindow* window) {
-	
+using namespace std;
+
+int randomInt() { return rand(); }
+
+int randomInt(int a, int b)
+	{
+		if (a > b)
+			return randomInt(b, a);
+		if (a == b)
+			return a;
+		return a + (rand() % (b - a));
+	}
+
+float randomFloat()
+	{
+		return (float)(rand()) / (float)(RAND_MAX);
+	}
+
+float randomFloat(int a, int b)
+	{
+		if (a > b)
+			return randomFloat(b, a);
+		if (a == b)
+			return a;
+
+		return (float)randomInt(a, b) + randomFloat();
+	}
+
+
+void processInput(GLFWwindow* window,Shader shader) {
+
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
@@ -322,6 +367,12 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
 		camera.ProcessKeyboardRotation(0.0, -1.0, 1);
 
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+			bodies_bullet.push_back(addSphere(sphere_radius,randomFloat(1,3), 20.0, randomFloat(1,3), 1.0));
+			Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+			sphere_render.makeObject(shader, false);
+			bodies_render.push_back(sphere_render);
+	}
 
 }
 
