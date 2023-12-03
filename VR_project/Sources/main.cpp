@@ -85,11 +85,20 @@ std::vector<btRigidBody*> bodies_bullet;
 std::vector<Object> bodies_render;
 
 //For Bullet object
+float shooting_strength = 30.0;
+
 float sphere_radius = 1.0;
+
+float cylinder_diameter = 0.3*2;
+float cylinder_height = 2.31;
 
 //Path and properties definition for OpenGL object
 char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
 glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.5);
+glm::vec3 shooted_sphere_materialColour = glm::vec3(0.62, 0.329, 0.98);
+
+char cylinder_path[] = PATH_TO_OBJECTS "/Shooting_cylinder.obj";
+glm::vec3 shooted_cylinder_materialColour = glm::vec3(0.973, 1.0, 0.071);
 
 btDynamicsWorld* world;
 btDispatcher* dispatcher;
@@ -109,6 +118,20 @@ btRigidBody* addSphere(float rad, float x, float y, float z, float mass) {
 	btRigidBody* body = new btRigidBody(info);
 	world->addRigidBody(body);
 	return body;	
+}
+
+btRigidBody* addCylinder(float d,float h,float x, float y, float z, float mass) {
+	btTransform t;
+	t.setIdentity();
+	t.setOrigin(btVector3(x, y, z));
+	btCylinderShape* cylinder = new btCylinderShape(btVector3(d/2.0,h/2.0,d/2.0));
+	btVector3 inertia(btVector3(0.0, 0.0, 0.0));
+	if (mass != 0.0) cylinder->calculateLocalInertia(mass, inertia);
+	btMotionState* motion = new btDefaultMotionState(t);
+	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, cylinder, inertia);
+	btRigidBody* body = new btRigidBody(info);
+	world->addRigidBody(body);
+	return body;
 }
 
 void init() {
@@ -204,20 +227,26 @@ int main(int argc, char* argv[])
 	int sphere_number = 5;
 	for (int i = 0; i < 5; i++) {
 		bodies_bullet.push_back(addSphere(sphere_radius, i*0.5, i*5, 0.0, 1.0));
+		bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, i * 0.5, i * 5, 0.0, 1.0));
 	}
 
 	//OpenGL Spheres
 
 	for (int i = 0; i < 5; i++) {
-		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		Object sphere_render(sphere_path, 2.0, 1.5, 32.0, 0.0, sphere_materialColour);
 		sphere_render.makeObject(shader, false);
 		bodies_render.push_back(sphere_render);
+
+		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, sphere_materialColour);
+		cylinder_render.makeObject(shader, false); 
+		bodies_render.push_back(cylinder_render); 
+
 	}
 
 	//OpenGL Plane
 	//Path and properties definition
 	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
-	glm::vec3 plane_materialColour = glm::vec3(0.3, 0.3, 1.0);
+	glm::vec3 plane_materialColour = glm::vec3(0.922, 0.765, 0.349);
 	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0, plane_materialColour);
 	plane.makeObject(shader, false);
 	
@@ -247,7 +276,7 @@ int main(int argc, char* argv[])
 
 	
 	//Ambient light
-	float ambient = 0.3;
+	float ambient = 0.5;
 
 	//Camera matrices
 	glm::mat4 view = camera.GetViewMatrix();
@@ -257,6 +286,8 @@ int main(int argc, char* argv[])
 	glfwSwapInterval(1);
 	shader.use();
 	shader.setFloat("u_ambient", ambient);
+
+	float h = 0.30;
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window,shader);
@@ -285,7 +316,7 @@ int main(int argc, char* argv[])
 
 		//Objects drawing
 		for (int i = 0; i < bodies_bullet.size(); i++) {
-			bodies_render[i].draw_on_bullet_object(shader, bodies_bullet[i], glm::vec3(sphere_radius));
+			bodies_render[i].draw_on_bullet_object(shader, bodies_bullet[i], glm::vec3(1.0));
 		}
 
 		//Plane drawing
@@ -301,9 +332,19 @@ int main(int argc, char* argv[])
 	}
 
 	//clean up ressource
+	for (int i = 0;i < bodies_bullet.size();i++) {
+
+		world->removeCollisionObject(bodies_bullet[i]);
+		btMotionState* motionState = bodies_bullet[i]->getMotionState();
+		btCollisionShape* shape = bodies_bullet[i]->getCollisionShape();
+		delete bodies_bullet[i];
+		delete shape;
+		delete motionState;
+	};
 	delete dispatcher;
 	delete collisionConfig;
 	delete solver;
+	delete world;
 	delete broadphase;
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -367,12 +408,44 @@ void processInput(GLFWwindow* window,Shader shader) {
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
 		camera.ProcessKeyboardRotation(0.0, -1.0, 1);
 
+	//Adding sphere to the world
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			bodies_bullet.push_back(addSphere(sphere_radius,randomFloat(1,3), 20.0, randomFloat(1,3), 1.0));
-			Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-			sphere_render.makeObject(shader, false);
-			bodies_render.push_back(sphere_render);
-	}
+		bodies_bullet.push_back(addSphere(sphere_radius, randomFloat(1, 3), 20.0, randomFloat(1, 3), 1.0));
+		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		sphere_render.makeObject(shader, false);
+		bodies_render.push_back(sphere_render);
+
+	};
+
+	//Shooting sphere in the world
+	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+
+		//Bullet Object
+		btRigidBody* shooting_sphere = addSphere(sphere_radius, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0); 
+		bodies_bullet.push_back(shooting_sphere); 
+		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength); 
+		shooting_sphere->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z)); 
+
+		//OpenGL object
+		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, shooted_sphere_materialColour); 
+		sphere_render.makeObject(shader, false);
+		bodies_render.push_back(sphere_render); 
+	};
+
+	//Shooting cylinder in the world
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+
+		//Bullet Object
+		btRigidBody* shooting_cylinder = addCylinder(cylinder_diameter,cylinder_height, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
+		bodies_bullet.push_back(shooting_cylinder);
+		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength);
+		shooting_cylinder->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z));
+
+		//OpenGL object
+		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, shooted_cylinder_materialColour); 
+		cylinder_render.makeObject(shader, false); 
+		bodies_render.push_back(cylinder_render); 
+	};
 
 }
 
