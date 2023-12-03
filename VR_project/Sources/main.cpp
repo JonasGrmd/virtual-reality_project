@@ -85,11 +85,11 @@ std::vector<btRigidBody*> bodies_bullet;
 std::vector<Object> bodies_render;
 
 //For Bullet object
-float shooting_strength = 30.0;
+float shooting_strength = 10.0;
 
 float sphere_radius = 1.0;
 
-float cylinder_diameter = 0.3*2;
+float cylinder_diameter = 0.31*2;
 float cylinder_height = 2.31;
 
 //Path and properties definition for OpenGL object
@@ -265,7 +265,6 @@ int main(int argc, char* argv[])
 	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
 	light.makeObject(shader, false);
 	
-
 	//Model matrix definition
 	glm::mat4 light_model = glm::mat4(1.0);
 	//Definition of a variable for its position since it's gonna move
