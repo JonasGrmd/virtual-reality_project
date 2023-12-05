@@ -4,7 +4,8 @@ in vec2 tex_coords;
 in vec3 normal; 
 
 out vec3 v_frag_coord; 
-out vec3 v_normal; 
+out vec3 v_normal;
+out vec3 v_normal_2;
 
 uniform mat4 M; 
 uniform mat4 itM; 
@@ -17,4 +18,5 @@ void main(){
 		
 	v_normal = normalize(vec3(itM * vec4(normal, 1.0))); 
 	v_frag_coord = frag_coord.xyz; 
+	v_normal_2 = normal;
 };

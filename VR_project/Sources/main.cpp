@@ -206,6 +206,9 @@ int main(int argc, char* argv[])
 	char fileVert[128] = PATH_TO_SHADERS "/vertexShader.txt";
 	char fileFrag[128] = PATH_TO_SHADERS "/fragmentShader.txt";
 	Shader shader(fileVert, fileFrag);
+	char fileScreenVert[128] = PATH_TO_SHADERS "/screenVertexShader.txt";
+	char fileScreenFrag[128] = PATH_TO_SHADERS "/screenFragmentShader.txt";
+	Shader screenShader(fileScreenVert, fileScreenFrag);
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -247,7 +250,7 @@ int main(int argc, char* argv[])
 	//Path and properties definition
 	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
 	glm::vec3 plane_materialColour = glm::vec3(0.922, 0.765, 0.349);
-	Object plane(plane_path, 1.0, 0.8, 32.0, 0.0, plane_materialColour);
+	Object plane(plane_path, 1.0, 0.0, 32.0, 0.0, plane_materialColour);
 	plane.makeObject(shader, false);
 	
 
@@ -261,7 +264,7 @@ int main(int argc, char* argv[])
 	//OpenGL Light object
 
 	//Path and properties definition
-	glm::vec3 lightColour = glm::vec3(0.6, 0.8, 0.7);
+	glm::vec3 lightColour = glm::vec3(0.0, 1.0, 1.0);
 	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
 	light.makeObject(shader, false);
 	
@@ -273,9 +276,34 @@ int main(int argc, char* argv[])
 	light_model = glm::scale(light_model, glm::vec3(0.2, 0.2, 0.2));
 	glm::mat4 inverse_light_model = glm::transpose(glm::inverse(light_model));
 
+
+	//Creation of a screen quad
+
+	float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+		// positions   // texCoords
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		-1.0f, -1.0f,  0.0f, 0.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		 1.0f,  1.0f,  1.0f, 1.0f
+	};
+	// screen quad VAO
+	unsigned int quadVAO, quadVBO;
+	glGenVertexArrays(1, &quadVAO);
+	glGenBuffers(1, &quadVBO);
+	glBindVertexArray(quadVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
 	
 	//Ambient light
-	float ambient = 0.5;
+	float ambient = 0.4;
 
 	//Camera matrices
 	glm::mat4 view = camera.GetViewMatrix();
@@ -286,20 +314,65 @@ int main(int argc, char* argv[])
 	shader.use();
 	shader.setFloat("u_ambient", ambient);
 
+	screenShader.use();
+	screenShader.setInteger("colorTexture", 0);
+	screenShader.setInteger("normalTexture", 1);
+
+	// framebuffer configuration
+	// -------------------------
+	unsigned int framebuffer;
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	// create a color and normal attachment texture
+	unsigned int textureColorbuffer;
+	unsigned int textureNormalbuffer;
+	//generate and set parameters of the color texture
+	glGenTextures(1, &textureColorbuffer);
+	glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+	//generate and set parameters of the normal texture
+	glGenTextures(1, &textureNormalbuffer);
+	glBindTexture(GL_TEXTURE_2D, textureNormalbuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, textureNormalbuffer, 0);
+	// create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+	unsigned int rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height); // use a single renderbuffer object for both a depth AND stencil buffer.
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+	// tell openGL that we want two textures as the output of this framebuffer
+	GLenum attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, attachments);
+	// now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+	//we set OpenGL state back to the default onscreen framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	float h = 0.30;
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window,shader);
 		view = camera.GetViewMatrix();
-		glfwPollEvents();
 		double now = glfwGetTime();
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
 
 		//Bullet simulation
-		world->stepSimulation(1/60.0); //Stepping simulation for one frame
+		world->stepSimulation(1 / 60.0); //Stepping simulation for one frame
+
+		// bind to framebuffer and draw scene as we normally would to color texture 
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
+
+		// make sure we clear the framebuffer's content
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		//Using shader
 		shader.use();
 
@@ -325,14 +398,31 @@ int main(int argc, char* argv[])
 		light_model = glm::translate(glm::mat4(1.0), light_pos);
 		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
 		light.draw_without_bullet_object(shader, light_model);
+
+		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+		// clear all relevant buffers
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessary actually, since we won't be able to see behind the quad anyways)
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		screenShader.use();
+		glBindVertexArray(quadVAO);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, textureColorbuffer);	// use the color attachment texture as the texture of the quad plane
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, textureNormalbuffer);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glActiveTexture(GL_TEXTURE0);
 		
 		fps(now);
 		glfwSwapBuffers(window);
+		glfwPollEvents();
 	}
 
 	//clean up ressource
 	for (int i = 0;i < bodies_bullet.size();i++) {
-
 		world->removeCollisionObject(bodies_bullet[i]);
 		btMotionState* motionState = bodies_bullet[i]->getMotionState();
 		btCollisionShape* shape = bodies_bullet[i]->getCollisionShape();
@@ -345,6 +435,10 @@ int main(int argc, char* argv[])
 	delete solver;
 	delete world;
 	delete broadphase;
+	glDeleteVertexArrays(1, &quadVAO);
+	glDeleteBuffers(1, &quadVBO);
+	glDeleteRenderbuffers(1, &rbo);
+	glDeleteFramebuffers(1, &framebuffer);
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
