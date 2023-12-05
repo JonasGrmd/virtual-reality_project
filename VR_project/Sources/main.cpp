@@ -92,6 +92,10 @@ float sphere_radius = 1.0;
 float cylinder_diameter = 0.31*2;
 float cylinder_height = 2.31;
 
+float box_width = 1.0;
+float box_height = 1.0;
+float box_depth = 2.0;
+
 //Path and properties definition for OpenGL object
 char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
 glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.5);
@@ -99,6 +103,9 @@ glm::vec3 shooted_sphere_materialColour = glm::vec3(0.62, 0.329, 0.98);
 
 char cylinder_path[] = PATH_TO_OBJECTS "/Shooting_cylinder.obj";
 glm::vec3 shooted_cylinder_materialColour = glm::vec3(0.973, 1.0, 0.071);
+
+char box_path[] = PATH_TO_OBJECTS "/Shooting_box.obj";
+glm::vec3 shooted_box_materialColour = glm::vec3(0.012, 0.902, 0.8);
 
 btDynamicsWorld* world;
 btDispatcher* dispatcher;
@@ -129,6 +136,20 @@ btRigidBody* addCylinder(float d,float h,float x, float y, float z, float mass) 
 	if (mass != 0.0) cylinder->calculateLocalInertia(mass, inertia);
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, cylinder, inertia);
+	btRigidBody* body = new btRigidBody(info);
+	world->addRigidBody(body);
+	return body;
+}
+
+btRigidBody* addBox(float width, float height, float depth, float x, float y, float z, float mass) {
+	btTransform t;
+	t.setIdentity();
+	t.setOrigin(btVector3(x, y, z));
+	btBoxShape* box = new btBoxShape(btVector3(width / 2.0, height / 2.0, depth / 2.0));
+	btVector3 inertia(btVector3(0.0, 0.0, 0.0));
+	if (mass != 0.0) box->calculateLocalInertia(mass, inertia);
+	btMotionState* motion = new btDefaultMotionState(t);
+	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, box, inertia);
 	btRigidBody* body = new btRigidBody(info);
 	world->addRigidBody(body);
 	return body;
@@ -286,17 +307,24 @@ int main(int argc, char* argv[])
 	shader.use();
 	shader.setFloat("u_ambient", ambient);
 
-	float h = 0.30;
+	//Initializing the mouse cursor at the center of the screen
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	//Declaring mouse cursor positions
+	double xposIn;
+	double yposIn;
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window,shader);
+
+		glfwGetCursorPos(window, &xposIn, &yposIn);
+		camera.ProcessMouseMovement(xposIn, yposIn);
+
 		view = camera.GetViewMatrix();
 		glfwPollEvents();
 		double now = glfwGetTime();
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
 
 		//Bullet simulation
 		world->stepSimulation(1/60.0); //Stepping simulation for one frame
@@ -382,7 +410,7 @@ float randomFloat(int a, int b)
 	}
 
 
-void processInput(GLFWwindow* window,Shader shader) {
+void processInput(GLFWwindow* window, Shader shader) {
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
@@ -397,15 +425,15 @@ void processInput(GLFWwindow* window,Shader shader) {
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
 		camera.ProcessKeyboardMovement(BACKWARD, 0.1);
 
-	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-		camera.ProcessKeyboardRotation(1, 0.0, 1);
-	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-		camera.ProcessKeyboardRotation(-1, 0.0, 1);
+	//if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+		//camera.ProcessKeyboardRotation(1, 0.0, 1);
+	//if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+		//camera.ProcessKeyboardRotation(-1, 0.0, 1);
 
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-		camera.ProcessKeyboardRotation(0.0, 1.0, 1);
-	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-		camera.ProcessKeyboardRotation(0.0, -1.0, 1);
+	//if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+		//camera.ProcessKeyboardRotation(0.0, 1.0, 1);
+	//if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+		//camera.ProcessKeyboardRotation(0.0, -1.0, 1);
 
 	//Adding sphere to the world
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
@@ -417,35 +445,49 @@ void processInput(GLFWwindow* window,Shader shader) {
 	};
 
 	//Shooting sphere in the world
-	if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 
 		//Bullet Object
-		btRigidBody* shooting_sphere = addSphere(sphere_radius, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0); 
-		bodies_bullet.push_back(shooting_sphere); 
-		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength); 
-		shooting_sphere->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z)); 
+		btRigidBody* shooting_sphere = addSphere(sphere_radius, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
+		bodies_bullet.push_back(shooting_sphere);
+		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength);
+		shooting_sphere->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z));
 
 		//OpenGL object
-		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, shooted_sphere_materialColour); 
+		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, shooted_sphere_materialColour);
 		sphere_render.makeObject(shader, false);
-		bodies_render.push_back(sphere_render); 
+		bodies_render.push_back(sphere_render);
 	};
 
 	//Shooting cylinder in the world
-	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
 
 		//Bullet Object
-		btRigidBody* shooting_cylinder = addCylinder(cylinder_diameter,cylinder_height, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
+		btRigidBody* shooting_cylinder = addCylinder(cylinder_diameter, cylinder_height, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
 		bodies_bullet.push_back(shooting_cylinder);
 		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength);
 		shooting_cylinder->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z));
 
 		//OpenGL object
-		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, shooted_cylinder_materialColour); 
-		cylinder_render.makeObject(shader, false); 
-		bodies_render.push_back(cylinder_render); 
+		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, shooted_cylinder_materialColour);
+		cylinder_render.makeObject(shader, false);
+		bodies_render.push_back(cylinder_render);
 	};
 
-}
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
+
+		//Bullet Object
+		btRigidBody* shooting_box = addBox(box_width, box_height, box_depth, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
+		bodies_bullet.push_back(shooting_box);
+		glm::vec3 shooting_direction = glm::vec3(camera.Front.x * shooting_strength, camera.Front.y * shooting_strength, camera.Front.z * shooting_strength);
+		shooting_box->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z));
+
+		//OpenGL object
+		Object box_render(box_path, 2.0, 1.5, 32.0, 0.0, shooted_box_materialColour);
+		box_render.makeObject(shader, false);
+		bodies_render.push_back(box_render);
+	};
+};
+
 
 
