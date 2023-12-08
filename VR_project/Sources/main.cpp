@@ -19,6 +19,7 @@
 
 #include "./../Headers/camera.h"
 #include "./../Headers/shader.h"
+#include "./../Headers/shaderVFG.h"
 #include "./../Headers/object.h"
 
 const int width = 1920;
@@ -85,11 +86,11 @@ std::vector<btRigidBody*> bodies_bullet;
 std::vector<Object> bodies_render;
 
 //For Bullet object
-float shooting_strength = 10.0;
+float shooting_strength = 30.0;
 
 float sphere_radius = 1.0;
 
-float cylinder_diameter = 0.31*2;
+float cylinder_diameter = 0.3*2;
 float cylinder_height = 2.31;
 
 //Path and properties definition for OpenGL object
@@ -209,6 +210,10 @@ int main(int argc, char* argv[])
 	char fileScreenVert[128] = PATH_TO_SHADERS "/screenVertexShader.txt";
 	char fileScreenFrag[128] = PATH_TO_SHADERS "/screenFragmentShader.txt";
 	Shader screenShader(fileScreenVert, fileScreenFrag);
+	char fileDepthVert[128] = PATH_TO_SHADERS "/depthVertexShader.txt";
+	char fileDepthFrag[128] = PATH_TO_SHADERS "/depthFragmentShader.txt";
+	char fileDepthGeom[128] = PATH_TO_SHADERS "/depthGeometryShader.txt";
+	ShaderVFG simpleDepthShader(fileDepthVert, fileDepthFrag, fileDepthGeom);
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -264,10 +269,11 @@ int main(int argc, char* argv[])
 	//OpenGL Light object
 
 	//Path and properties definition
-	glm::vec3 lightColour = glm::vec3(0.0, 1.0, 1.0);
+	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
 	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
 	light.makeObject(shader, false);
 	
+
 	//Model matrix definition
 	glm::mat4 light_model = glm::mat4(1.0);
 	//Definition of a variable for its position since it's gonna move
@@ -303,7 +309,7 @@ int main(int argc, char* argv[])
 
 	
 	//Ambient light
-	float ambient = 0.4;
+	float ambient = 0.3;
 
 	//Camera matrices
 	glm::mat4 view = camera.GetViewMatrix();
@@ -313,6 +319,7 @@ int main(int argc, char* argv[])
 	glfwSwapInterval(1);
 	shader.use();
 	shader.setFloat("u_ambient", ambient);
+	shader.setInteger("depthMap", 0);
 
 	screenShader.use();
 	screenShader.setInteger("colorTexture", 0);
@@ -355,7 +362,29 @@ int main(int argc, char* argv[])
 	//we set OpenGL state back to the default onscreen framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	float h = 0.30;
+
+	// configure depth map FBO
+   // -----------------------
+	const unsigned int SHADOW_WIDTH = width, SHADOW_HEIGHT = height;
+	unsigned int depthMapFBO;
+	glGenFramebuffers(1, &depthMapFBO);
+	// create depth cubemap texture
+	unsigned int depthCubemap;
+	glGenTextures(1, &depthCubemap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+	for (unsigned int i = 0; i < 6; ++i)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	// attach depth texture as FBO's depth buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window,shader);
@@ -365,39 +394,80 @@ int main(int argc, char* argv[])
 		//Bullet simulation
 		world->stepSimulation(1 / 60.0); //Stepping simulation for one frame
 
-		// bind to framebuffer and draw scene as we normally would to color texture 
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
+		//Light movement
+		light_pos = glm::vec3(3*std::cos(now), 1.0, 3*std::sin(now));
 
-		// make sure we clear the framebuffer's content
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//Using shader
-		shader.use();
+		// 0. create depth cubemap transformation matrices
+		// -----------------------------------------------
+		float near_plane = 1.0f;
+		float far_plane = 25.0f;
+		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
+		std::vector<glm::mat4> shadowTransforms;
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)));
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
+		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
 
-		//Light movement sent to shader
-		light_pos = glm::vec3(3*std::cos(now), 1.0, 3*std::sin(now));
+		// RENDER SCENE TO DEPTH CUBEMAP
+		// ----------Initialising cubemap and depth buffer
+		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		simpleDepthShader.use();
+		simpleDepthShader.setMatrix4("shadowMatrices[0]", shadowTransforms[0]);
+		simpleDepthShader.setMatrix4("shadowMatrices[1]", shadowTransforms[1]);
+		simpleDepthShader.setMatrix4("shadowMatrices[2]", shadowTransforms[2]);
+		simpleDepthShader.setMatrix4("shadowMatrices[3]", shadowTransforms[3]);
+		simpleDepthShader.setMatrix4("shadowMatrices[4]", shadowTransforms[4]);
+		simpleDepthShader.setMatrix4("shadowMatrices[5]", shadowTransforms[5]);
+		
+		simpleDepthShader.setFloat("far_plane", far_plane);
+		simpleDepthShader.setVector3f("lightPos", light_pos);
+		//-----------Rendering in depth cubemap
+		//Objects drawing
+		for (int i = 0; i < bodies_bullet.size(); i++) {
+			bodies_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_bullet[i], glm::vec3(1.0));
+		}
+		//Plane drawing
+		plane.draw_without_bullet_object_VFG(simpleDepthShader, plane_model);
+		//Light drawing
+		light_model = glm::translate(glm::mat4(1.0), light_pos);
+		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
+		light.draw_without_bullet_object_VFG(simpleDepthShader, light_model);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// bind to framebuffer and draw scene as we normally would to color texture 
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
+		// make sure we clear the framebuffer's content
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+		shader.use();
+		shader.setFloat("far_plane", far_plane);
 		shader.setVector3f("u_light_pos", light_pos);
 		shader.setVector3f("lightColour", lightColour);
-
 		//Camera info sent to shader
 		shader.setMatrix4("V", view);
 		shader.setMatrix4("P", perspective);
 		shader.setVector3f("u_view_pos", camera.Position);
-
 		//Objects drawing
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object(shader, bodies_bullet[i], glm::vec3(1.0));
 		}
-
 		//Plane drawing
 		plane.draw_without_bullet_object(shader, plane_model);
-
 		//Light drawing
 		light_model = glm::translate(glm::mat4(1.0), light_pos);
 		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
 		light.draw_without_bullet_object(shader, light_model);
+		
 
 		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -439,6 +509,7 @@ int main(int argc, char* argv[])
 	glDeleteBuffers(1, &quadVBO);
 	glDeleteRenderbuffers(1, &rbo);
 	glDeleteFramebuffers(1, &framebuffer);
+	glDeleteFramebuffers(1, &depthMapFBO);
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
@@ -474,6 +545,8 @@ float randomFloat(int a, int b)
 
 		return (float)randomInt(a, b) + randomFloat();
 	}
+
+
 
 
 void processInput(GLFWwindow* window,Shader shader) {
