@@ -7,6 +7,9 @@ in vec3 v_frag_coord;
 in vec3 v_normal; 
 in vec3 v_normal_2;
 
+uniform samplerCube depthMap;
+uniform float far_plane;
+
 uniform vec3 u_view_pos; 
 uniform mat4 M;
 
@@ -20,6 +23,23 @@ uniform vec3 lightColour;
 //What information do you need about the object ?
 uniform vec3 materialColour; 
 uniform float u_shininess;
+
+float ShadowCalculation(vec3 fragPos)
+{
+    // get vector between fragment position and light position
+    vec3 fragToLight = fragPos - u_light_pos;
+    // use the light to fragment vector to sample from the depth map    
+    float closestDepth = texture(depthMap, fragToLight).r;
+    // it is currently in linear range between [0,1]. Re-transform back to original value
+    closestDepth *= far_plane;
+    // now get current linear depth as the length between the fragment and light position
+    float currentDepth = length(fragToLight);
+    // now test for shadows
+    float bias = 0.05; 
+    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;
+
+    return shadow;
+} 
 
 void main() { 
 //Compute each of the component needed (specular light, diffuse light, attenuation,...)
@@ -36,14 +56,23 @@ void main() {
 
 	float attenuation = 1.0/(1.0+ 0.2*pow(length(u_light_pos - v_frag_coord),1)+0.0*pow(length(u_light_pos - v_frag_coord),2));
 
+	float shadow = ShadowCalculation(v_frag_coord);
+	shadow = 0.0;
+
 	//Compute the value for the light
 	if (length(specular*attenuation*materialColour) < 0.1){
-		FragColor = vec4(materialColour*(ambient + u_emissive + (diffuse + specular)*attenuation), 1.0); 
+		if (diff > 0.2){
+		diff = 0.8;
+		diffuse = diff*lightColour;
+		}
+		FragColor = vec4(materialColour*(ambient + u_emissive + (1.0-shadow)*(diffuse + specular)*attenuation), 1.0); 
 	}
 	else{
-		//FragColor = vec4(lightColour,1.0)*(attenuation) +vec4(materialColour,1.0)*(1-attenuation);
-		FragColor = vec4(lightColour,1.0);
+		FragColor = vec4(materialColour*ambient + (lightColour*(attenuation) + materialColour*(1-attenuation))*(1.0-shadow),1.0);
+		//FragColor = vec4(lightColour,1.0);
 	}
+
+	//FragColor = vec4(vec3(closestDepth / far_plane), 1.0);  
 	
 	FragNormal = vec4((v_normal_2 + vec3(1.0))*0.5,1.0);
 };
