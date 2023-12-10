@@ -44,7 +44,7 @@ float ShadowCalculation(vec3 fragPos)
 void main() { 
 //Compute each of the component needed (specular light, diffuse light, attenuation,...)
 	vec3 L = normalize(u_light_pos - v_frag_coord);
-	vec3 N = v_normal;
+	vec3 N = normalize(v_normal);
 	vec3 R = (reflect(-L,N));
 	vec3 V = normalize(u_view_pos - v_frag_coord);
 

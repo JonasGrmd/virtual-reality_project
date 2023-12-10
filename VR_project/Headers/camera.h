@@ -41,6 +41,11 @@ public:
     float MouseSensitivity;
     float Zoom;
 
+    bool firstMouse = true;
+    float lastX = 1920.0 / 2.0;
+    float lastY = 1080.0 / 2.0;
+    
+
     // constructor with vectors
     Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
     {
@@ -108,17 +113,45 @@ public:
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-    void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+    void ProcessMouseMovement(float xposIn, float yposIn, GLboolean constrainPitch = true)
     {
         /* The motivated students can implement rotation using the mouse rather than the keyboard
         * You can draw inspiration from the ProcessKeyboardMovement function
         */
-    }
+        float xpos = static_cast<float>(xposIn); 
+        float ypos = static_cast<float>(yposIn);
+
+        if (firstMouse) {
+            lastX = xposIn;
+            lastY = yposIn;
+            firstMouse = false;
+        }
+
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+        lastX = xpos;
+        lastY = ypos;
+
+        xoffset *= MouseSensitivity;
+        yoffset *= MouseSensitivity;
+
+        this->Yaw += xoffset;
+        this->Pitch += yoffset;
+
+        if (constrainPitch) {
+            if (this->Pitch > 89.0f)
+                this->Pitch = 89.0f;
+            if (this->Pitch < -89.0f)
+                this->Pitch = -89.0f;
+        }
+        updateCameraVectors();
+    };
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
-    void ProcessMouseScroll(float yoffset)
+    void ProcessMouseScroll(float yposIn)
     {
-        Zoom -= (float)yoffset;
+        float ypos = static_cast<float>(yposIn);
+        Zoom -= (float)ypos;
         if (Zoom < 1.0f)
             Zoom = 1.0f;
         if (Zoom > 45.0f)
