@@ -33,32 +33,32 @@ void main()
         1.0, 0.0, -1.0 
     );
     
-    float sampleNormTex[9];
-    float sampleColorTex[9];
+    vec3 sampleNormTex[9];
+    vec3 sampleColorTex[9];
     for(int i = 0; i < 9; i++)
     {
-        sampleNormTex[i] = length(vec3(texture(normalTexture, TexCoords.st + offsets[i])));
-        sampleColorTex[i] = length(vec3(texture(colorTexture, TexCoords.st + offsets[i])));
+        sampleNormTex[i] = vec3(texture(normalTexture, TexCoords.st + offsets[i]));
+        sampleColorTex[i] = vec3(texture(colorTexture, TexCoords.st + offsets[i]));
     }
-    float Ngx = 0.0;
-    float Cgx = 0.0;
+    vec3 Ngx = vec3(0.0);
+    vec3 Cgx = vec3(0.0);
     for (int i = 0; i < 9; i++){
         Ngx += sx[i] * sampleNormTex[i];
         Cgx += sx[i] * sampleColorTex[i];
     }
-    float Ngy = 0.0;
-    float Cgy = 0.0;
+    vec3 Ngy = vec3(0.0);
+    vec3 Cgy = vec3(0.0);
     for (int i = 0; i < 9; i++){
         Ngy += sy[i] * sampleNormTex[i];
         Cgy += sy[i] * sampleColorTex[i];
     }
-    float Ng = sqrt(pow(Ngx, 2.0)+pow(Ngy, 2.0));
-    float Cg = sqrt(pow(Cgx, 2.0)+pow(Cgy, 2.0));
+    float Ng = sqrt(pow(length(Ngx), 2.0)+pow(length(Ngy), 2.0));
+    float Cg = sqrt(pow(length(Cgx), 2.0)+pow(length(Cgy), 2.0));
 
-    float g = max(Cg,Ng);
+    float g = max(Ng,Cg);
     
     vec3 initialColor = vec3(texture(colorTexture, TexCoords.st));
     vec3 col = initialColor - vec3(g);
 
-    FragColor = vec4(initialColor, 1.0);
+    FragColor = vec4(col, 1.0);
 }  
