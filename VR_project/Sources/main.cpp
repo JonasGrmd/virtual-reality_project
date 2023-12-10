@@ -86,7 +86,7 @@ std::vector<btRigidBody*> bodies_bullet;
 std::vector<Object> bodies_render;
 
 //For Bullet object
-float shooting_strength = 30.0;
+float shooting_strength = 10.0;
 
 float sphere_radius = 1.0;
 
@@ -124,6 +124,8 @@ btRigidBody* addSphere(float rad, float x, float y, float z, float mass) {
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, sphere, inertia);
 	btRigidBody* body = new btRigidBody(info);
+	body->setFriction(0.5);
+	body->setRollingFriction(.5);
 	world->addRigidBody(body);
 	return body;	
 }
@@ -138,6 +140,8 @@ btRigidBody* addCylinder(float d,float h,float x, float y, float z, float mass) 
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, cylinder, inertia);
 	btRigidBody* body = new btRigidBody(info);
+	body->setFriction(0.5); 
+	body->setRollingFriction(.5);
 	world->addRigidBody(body);
 	return body;
 }
@@ -152,6 +156,7 @@ btRigidBody* addBox(float width, float height, float depth, float x, float y, fl
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, box, inertia);
 	btRigidBody* body = new btRigidBody(info);
+	body->setFriction(0.5); 
 	world->addRigidBody(body);
 	return body;
 }
@@ -173,6 +178,7 @@ void init() {
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(0.0, motion, plane);
 	btRigidBody* body = new btRigidBody(info);
+	body->setFriction(.5);
 	world->addRigidBody(body);
 };
 
