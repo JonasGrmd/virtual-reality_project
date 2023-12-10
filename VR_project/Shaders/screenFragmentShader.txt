@@ -1,0 +1,64 @@
+#version 330 core
+in vec2 TexCoords;
+out vec4 FragColor;
+
+uniform sampler2D colorTexture;
+uniform sampler2D normalTexture;
+
+const float offset_x = 1.0 / 1920.0;  
+const float offset_y = 1.0 / 1080.0;
+
+void main()
+{
+    vec2 offsets[9] = vec2[](
+        vec2(-offset_x,  offset_y), // top-left
+        vec2( 0.0f,    offset_y), // top-center
+        vec2( offset_x,  offset_y), // top-right
+        vec2(-offset_x,  0.0f),   // center-left
+        vec2( 0.0f,    0.0f),   // center-center
+        vec2( offset_x,  0.0f),   // center-right
+        vec2(-offset_x, -offset_y), // bottom-left
+        vec2( 0.0f,   -offset_y), // bottom-center
+        vec2( offset_x, -offset_y)  // bottom-right    
+    );
+
+    float sx[9] = float[]( 
+        1.0, 2.0, 1.0, 
+        0.0, 0.0, 0.0, 
+        -1.0, -2.0, -1.0 
+    );
+    float sy[9] = float[]( 
+        1.0, 0.0, -1.0, 
+        2.0, 0.0, -2.0, 
+        1.0, 0.0, -1.0 
+    );
+    
+    float sampleNormTex[9];
+    float sampleColorTex[9];
+    for(int i = 0; i < 9; i++)
+    {
+        sampleNormTex[i] = length(vec3(texture(normalTexture, TexCoords.st + offsets[i])));
+        sampleColorTex[i] = length(vec3(texture(colorTexture, TexCoords.st + offsets[i])));
+    }
+    float Ngx = 0.0;
+    float Cgx = 0.0;
+    for (int i = 0; i < 9; i++){
+        Ngx += sx[i] * sampleNormTex[i];
+        Cgx += sx[i] * sampleColorTex[i];
+    }
+    float Ngy = 0.0;
+    float Cgy = 0.0;
+    for (int i = 0; i < 9; i++){
+        Ngy += sy[i] * sampleNormTex[i];
+        Cgy += sy[i] * sampleColorTex[i];
+    }
+    float Ng = sqrt(pow(Ngx, 2.0)+pow(Ngy, 2.0));
+    float Cg = sqrt(pow(Cgx, 2.0)+pow(Cgy, 2.0));
+
+    float g = max(Cg,Ng);
+    
+    vec3 initialColor = vec3(texture(colorTexture, TexCoords.st));
+    vec3 col = initialColor - vec3(g);
+
+    FragColor = vec4(col, 1.0);
+}  

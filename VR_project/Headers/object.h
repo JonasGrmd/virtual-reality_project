@@ -249,5 +249,45 @@ public:
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 	}
+
+	void draw_on_bullet_object_VFG(ShaderVFG shader, btRigidBody* body, glm::vec3 scale) {
+		btTransform t;
+		body->getMotionState()->getWorldTransform(t); //Get the position of the bullet object
+		//btVector3 body_translation = t.getOrigin();	  //and put it the sphere_translation vector
+		float mat[16];
+		t.getOpenGLMatrix(mat);
+		//Changing the model matrix following the sphere_translation
+		glm::mat4 model(1.0f);
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				model[j][i] = mat[4 * j + i];
+			};
+		};
+		model = glm::scale(model, scale);
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
+		glBindVertexArray(this->VAO);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+
+	}
+
+	void draw_without_bullet_object_VFG(ShaderVFG shader, glm::mat4 model) {
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
+		glBindVertexArray(this->VAO);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+	}
 };
 #endif
