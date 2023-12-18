@@ -23,8 +23,8 @@
 #include "./../Headers/object.h"
 #include "./../Headers/particle.h"
 
-const int width = 1920/2.0;
-const int height = 1080/2.0;
+const int width = 1920;
+const int height = 1080;
 
 
 GLuint compileShader(std::string shaderCode, GLenum shaderType);
@@ -617,6 +617,13 @@ int main(int argc, char* argv[])
 		}
 		//Plane drawing
 		plane.draw_without_bullet_object_VFG(simpleDepthShader, plane_model);
+		//Vehicle drawing
+		vehicle_core_render.draw_on_bullet_object_vehicle_core_VFG(simpleDepthShader, vehicle, glm::vec3(1.0));
+		vehicle_wheel0_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 0, glm::vec3(1.0));
+		vehicle_wheel1_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 1, glm::vec3(1.0));
+		vehicle_wheel2_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 2, glm::vec3(1.0));
+		vehicle_wheel3_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 3, glm::vec3(1.0));
+		vehicle_canon_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 4, glm::vec3(0.5));
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// bind to framebuffer and draw scene as we normally would to color texture 
@@ -642,6 +649,7 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object(shader, bodies_bullet[i], glm::vec3(1.0));
 		}
+
 		//Vehicle drawing
 		vehicle_core_render.draw_on_bullet_object_vehicle_core(shader, vehicle, glm::vec3(1.0));
 		vehicle_wheel0_render.draw_on_bullet_object_vehicle_wheels(shader, vehicle,0, glm::vec3(1.0));
@@ -649,17 +657,18 @@ int main(int argc, char* argv[])
 		vehicle_wheel2_render.draw_on_bullet_object_vehicle_wheels(shader, vehicle,2, glm::vec3(1.0));
 		vehicle_wheel3_render.draw_on_bullet_object_vehicle_wheels(shader, vehicle,3, glm::vec3(1.0));
 		vehicle_canon_render.draw_on_bullet_object_vehicle_wheels(shader, vehicle, 4, glm::vec3(0.5));
+
 		//Plane drawing
 		plane.draw_without_bullet_object(shader, plane_model);
 		//Light drawing
 		light.draw_without_bullet_object(shader, light_model);
 		//Particles system
-		float yMax = 100.0;
-		float particleFarPlane = 100.0;
-		float gravity = 10.0;
-		glm::vec3 wind = glm::vec3(2.0, 0.0, 2.0);
-		particleGen.Update(1.0/60, yMax, 100.0, 10.0, wind, 10.0, camera);
-		particleGen.Draw(camera);
+		//float yMax = 100.0;
+		//float particleFarPlane = 100.0;
+		//float gravity = 10.0;
+		//glm::vec3 wind = glm::vec3(2.0, 0.0, 2.0);
+		//particleGen.Update(1.0/60, yMax, 100.0, 10.0, wind, 10.0, camera);
+		//particleGen.Draw(camera);
 		
 		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -715,7 +724,6 @@ int main(int argc, char* argv[])
 	// Nettoyer les ressources OpenGL
 	glDeleteVertexArrays(1, &quadVAO); 
 	glDeleteBuffers(1, &quadVBO); 
-	glDeleteRenderbuffers(1, &rbo); 
 	glDeleteFramebuffers(1, &framebuffer); 
 	glDeleteFramebuffers(1, &depthMapFBO); 
 
@@ -852,6 +860,10 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		vehicle->applyEngineForce(accelerationForce, 2);
 		vehicle->applyEngineForce(accelerationForce, 3);
 	}
+	else {
+		vehicle->applyEngineForce(0.0, 2);
+		vehicle->applyEngineForce(0.0, 3);
+	}
 
 
 	//Adding sphere to the world
@@ -860,13 +872,8 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
 		sphere_render.makeObject(shader, simpleDepthShader, false);
 		bodies_render.push_back(sphere_render);
-
-	};
-
-	else {
-		vehicle->applyEngineForce(0.0, 2); 
-		vehicle->applyEngineForce(0.0, 3);
 	}
+	
 	// Frein
 	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
 		vehicle->applyEngineForce(brakeForce, 2); 
@@ -935,7 +942,7 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		bodies_render.push_back(box_render);
 	};
 
-	};
+
 };
 
 
