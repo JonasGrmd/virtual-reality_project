@@ -273,6 +273,7 @@ public:
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 	}
 
+
 	void draw_on_bullet_object_vehicle_wheels(Shader shader, btRaycastVehicle* vehicle,float wheelIndex, glm::vec3 scale) {
 		btWheelInfo& wheelInfo = vehicle->getWheelInfo(wheelIndex);
 		btVector3 wheelPosition = wheelInfo.m_worldTransform.getOrigin(); 
@@ -335,6 +336,56 @@ public:
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 		glBindVertexArray(0);
+	}
+
+	void draw_on_bullet_object_vehicle_core_VFG(ShaderVFG shader, btRaycastVehicle* vehicle, glm::vec3 scale) {
+		btTransform t;
+		btTransform chassisWorldTransform = vehicle->getChassisWorldTransform();
+		// Obtient la position du châssis dans le monde
+		btVector3 chassisPosition = chassisWorldTransform.getOrigin();
+		// Obtient l'orientation du châssis dans le monde
+		btQuaternion chassisOrientation = chassisWorldTransform.getRotation();
+		// Convertit la position et l'orientation en glm::vec3 et glm::quat
+		glm::vec3 position = glm::vec3(chassisPosition.getX(), chassisPosition.getY(), chassisPosition.getZ());
+		glm::quat orientation = glm::quat(chassisOrientation.getZ(), chassisOrientation.getY(), chassisOrientation.getX(), chassisOrientation.getW());
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, position);
+		model *= glm::mat4_cast(orientation);   // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model = glm::scale(model, scale);
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
+		glBindVertexArray(this->VAO);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+	}
+
+
+	void draw_on_bullet_object_vehicle_wheels_VFG(ShaderVFG shader, btRaycastVehicle* vehicle, float wheelIndex, glm::vec3 scale) {
+		btWheelInfo& wheelInfo = vehicle->getWheelInfo(wheelIndex);
+		btVector3 wheelPosition = wheelInfo.m_worldTransform.getOrigin();
+		btQuaternion wheelOrientation = wheelInfo.m_worldTransform.getRotation();
+		glm::vec3 position = glm::vec3(wheelPosition.getX(), wheelPosition.getY(), wheelPosition.getZ());
+		glm::quat orientation = glm::quat(wheelOrientation.getW(), wheelOrientation.getX(), wheelOrientation.getY(), wheelOrientation.getZ());
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, position);
+		model *= glm::mat4_cast(orientation);    // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model = glm::scale(model, scale);
+		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
+		shader.setMatrix4("M", model);
+		shader.setMatrix4("itM", inverse_model);
+
+		shader.setVector3f("materialColour", this->materialColour);
+		shader.setFloat("u_diffuse", this->diffusion_coefficient);
+		shader.setFloat("u_specular", this->specularity_coefficient);
+		shader.setFloat("u_shininess", this->shininess_coefficient);
+		shader.setFloat("u_emissive", this->emission_coefficient);
+		glBindVertexArray(this->VAO);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
 	}
 
 	void draw_without_bullet_object_VFG(ShaderVFG shader, glm::mat4 model) {
