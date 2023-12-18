@@ -4,10 +4,10 @@ out vec4 FragColor;
 
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
-uniform sampler2D depthTexture; 
 
-uniform float near_plane;
-uniform float far_plane;
+uniform sampler2D depthTexture;
+
+uniform vec3 backgroundColor;
 
 const float offset_x = 1.0 / 1920.0;  
 const float offset_y = 1.0 / 1080.0;
@@ -54,32 +54,37 @@ void main()
         sampleColorTex[i] = vec3(texture(colorTexture, TexCoords.st + offsets[i]));
         sampleDepthTex[i] = vec3(LinearizeDepth(texture(depthTexture, TexCoords.st + offsets[i]).r));
     }
-    vec3 Ngx = vec3(0.0);
-    vec3 Cgx = vec3(0.0);
-    vec3 Dgx = vec3(0.0);
-    for (int i = 0; i < 9; i++){
-        Ngx += sx[i] * sampleNormTex[i];
-        Cgx += sx[i] * sampleColorTex[i];
-        Dgx += sx[i] * sampleDepthTex[i];
-    }
-    vec3 Ngy = vec3(0.0);
-    vec3 Cgy = vec3(0.0);
-    vec3 Dgy = vec3(0.0);
-    for (int i = 0; i < 9; i++){
-        Ngy += sy[i] * sampleNormTex[i];
-        Cgy += sy[i] * sampleColorTex[i];
-        Dgy += sy[i] * sampleDepthTex[i];
-    }
-    float Ng = sqrt(pow(length(Ngx), 2.0)+pow(length(Ngy), 2.0));
-    float Cg = sqrt(pow(length(Cgx), 2.0)+pow(length(Cgy), 2.0));
-    float Dg = sqrt(pow(length(Dgx), 2.0)+pow(length(Dgy), 2.0));
 
-    if(Cg <0.5){Cg = 0.0;};
+    vec3 NormalGradX = vec3(0.0);
+    vec3 ColorGradX = vec3(0.0);
+    float ClarityGradX = 0.0;
+    for (int i = 0; i < 9; i++){
+        NormalGradX += sx[i] * sampleNormTex[i];
+        ColorGradX += sx[i] * sampleColorTex[i];
+        ClarityGradX += sx[i] * length(sampleColorTex[i]);
+    }
+    vec3 NormalGradY = vec3(0.0);
+    vec3 ColorGradY = vec3(0.0);
+    float ClarityGradY = 0.0;
+    for (int i = 0; i < 9; i++){
+        NormalGradY += sy[i] * sampleNormTex[i];
+        ColorGradY += sy[i] * sampleColorTex[i];
+        ClarityGradY += sy[i] * length(sampleColorTex[i]);
+    }
+    float NormalGrad = sqrt(pow(length(NormalGradX), 2.0)+pow(length(NormalGradY), 2.0));
+    float ColorGrad = sqrt(pow(length(ColorGradX), 2.0)+pow(length(ColorGradY), 2.0));
+    float ClarityGrad = sqrt(pow(ClarityGradX,2.0) + pow(ClarityGradY,2.0));
 
-    float g = max(Cg,Ng);
-    
+    float EdgeDetectionGrad = NormalGrad;
+
     vec3 initialColor = vec3(texture(colorTexture, TexCoords.st));
-    vec3 col = initialColor - vec3(g);
 
-    FragColor = vec4(col, 1.0);
+    float Clarity = length(initialColor);
+    vec3 col = initialColor - vec3(EdgeDetectionGrad);
+
+    float depth = texture(depthTexture, TexCoords.st).r;
+
+    col = mix(col, backgroundColor, depth);
+
+    FragColor = vec4(col,1.0);
 }  

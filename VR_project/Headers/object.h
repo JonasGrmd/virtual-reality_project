@@ -164,7 +164,7 @@ public:
 
 
 
-	void makeObject(Shader shader, bool texture = true) {
+	void makeObject(Shader shader, ShaderVFG shaderVFG ,bool texture = true) {
 		/* This is a working but not perfect solution, you can improve it if you need/want
 		* What happens if you call this function twice on an Model ?
 		* What happens when a shader doesn't have a position, tex_coord or normal attribute ?
@@ -197,6 +197,9 @@ public:
 		glEnableVertexAttribArray(att_pos);
 		glVertexAttribPointer(att_pos, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0);
 
+		auto att_pos_2 = glGetAttribLocation(shaderVFG.ID, "position");
+		glEnableVertexAttribArray(att_pos_2);
+		glVertexAttribPointer(att_pos_2, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0);
 
 		if (texture) {
 			auto att_tex = glGetAttribLocation(shader.ID, "tex_coord");
@@ -215,6 +218,7 @@ public:
 		delete[] data;
 
 	}
+
 
 	void draw_on_bullet_object(Shader shader, btRigidBody* body, glm::vec3 scale) {
 		btTransform t;
@@ -240,7 +244,7 @@ public:
 		shader.setFloat("u_emissive", this->emission_coefficient);
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
-
+		glBindVertexArray(0);
 	}
 
 	void draw_on_bullet_object_vehicle_core(Shader shader, btRaycastVehicle* vehicle, glm::vec3 scale) {
@@ -303,6 +307,7 @@ public:
 		shader.setFloat("u_emissive", this->emission_coefficient);
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+		glBindVertexArray(0);
 	}
 
 	void draw_on_bullet_object_VFG(ShaderVFG shader, btRigidBody* body, glm::vec3 scale) {
@@ -329,7 +334,7 @@ public:
 		shader.setFloat("u_emissive", this->emission_coefficient);
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
-
+		glBindVertexArray(0);
 	}
 
 	void draw_without_bullet_object_VFG(ShaderVFG shader, glm::mat4 model) {
@@ -343,6 +348,7 @@ public:
 		shader.setFloat("u_emissive", this->emission_coefficient);
 		glBindVertexArray(this->VAO);
 		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+		glBindVertexArray(0);
 	}
 
 	glm::vec3 getObjectPosition(btRigidBody* body) 

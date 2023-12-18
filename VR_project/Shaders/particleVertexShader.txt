@@ -1,0 +1,18 @@
+#version 330 core
+in vec3 position;
+
+out vec3 ParticlePos;
+out vec4 ParticleColor;
+
+uniform mat4 M;
+uniform mat4 P;
+uniform mat4 V;
+uniform vec4 color;
+
+void main()
+{
+    vec4 fragPos = M*vec4(position,1.0);
+    ParticleColor = color;
+    gl_Position = P * V * fragPos;
+    ParticlePos = vec3(fragPos);
+}

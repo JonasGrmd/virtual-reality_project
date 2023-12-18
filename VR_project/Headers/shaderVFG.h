@@ -108,6 +108,10 @@ private:
             else if (shaderType == GL_FRAGMENT_SHADER) {
                 t = "fragment shader";
             }
+            else if (shaderType == GL_GEOMETRY_SHADER)
+            {
+                t = "geometry shader";
+            }
             std::cout << "ERROR::SHADER_COMPILATION_ERROR of the " << t << ": " << shaderType << infoLog << std::endl;
         }
         return shader;

@@ -21,6 +21,7 @@
 #include "./../Headers/shader.h"
 #include "./../Headers/shaderVFG.h"
 #include "./../Headers/object.h"
+#include "./../Headers/particle.h"
 
 const int width = 1920/2.0;
 const int height = 1080/2.0;
@@ -28,8 +29,8 @@ const int height = 1080/2.0;
 
 GLuint compileShader(std::string shaderCode, GLenum shaderType);
 GLuint compileProgram(GLuint vertexShader, GLuint fragmentShader);
-void processInput(GLFWwindow* window,Shader shader, btRaycastVehicle* vehicle);
 
+void processInput(GLFWwindow* window,Shader shader, ShaderVFG simpleDepthShader, btRaycastVehicle* vehicle);
 
 #ifndef NDEBUG
 void APIENTRY glDebugOutput(GLenum source,
@@ -194,8 +195,6 @@ void init() {
 
 int main(int argc, char* argv[])
 {
-	//Initialize Bullet world
-	init();
 	//Boilerplate
 	//Create the OpenGL context 
 	if (!glfwInit()) {
@@ -251,6 +250,9 @@ int main(int argc, char* argv[])
 	char fileDepthFrag[128] = PATH_TO_SHADERS "/depthFragmentShader.txt";
 	char fileDepthGeom[128] = PATH_TO_SHADERS "/depthGeometryShader.txt";
 	ShaderVFG simpleDepthShader(fileDepthVert, fileDepthFrag, fileDepthGeom);
+	char fileParticleVert[128] = PATH_TO_SHADERS "/particleVertexShader.txt";
+	char fileParticleFrag[128] = PATH_TO_SHADERS "/particleFragmentShader.txt";
+	Shader particleShader(fileParticleVert, fileParticleFrag);
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -268,6 +270,8 @@ int main(int argc, char* argv[])
 	};
 
 	//Bullet Objects
+	//Initialize Bullet world
+	init();
 
 	int sphere_number = 5;
 	for (int i = 0; i < 5; i++) {
@@ -278,22 +282,22 @@ int main(int argc, char* argv[])
 	//OpenGL Spheres
 
 	for (int i = 0; i < 5; i++) {
-		Object sphere_render(sphere_path, 2.0, 1.5, 32.0, 0.0, sphere_materialColour); 
-		sphere_render.makeObject(shader, false);
+		Object sphere_render(sphere_path, 1.0, 1.0, 32.0, 0.0, sphere_materialColour);
+		sphere_render.makeObject(shader, simpleDepthShader, false);
 		bodies_render.push_back(sphere_render);
 
-		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, sphere_materialColour);
-		cylinder_render.makeObject(shader, false); 
+		Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		cylinder_render.makeObject(shader, simpleDepthShader, false); 
 		bodies_render.push_back(cylinder_render); 
 
 	}
 	
 	//Bullet and OpenGl player
 	//------------------------------------------------------------
-	// CrÈation du corps principal (boÓte)
+	// Cr√©ation du corps principal (bo√Æte)
 	btCollisionShape* carShape = new btBoxShape(btVector3(box_width, 1.2, box_depth)); 
 
-	// Position initiale du vÈhicule dans le monde
+	// Position initiale du v√©hicule dans le monde
 	btVector3 initialPosition(0.0, 5.0, 0.0); 
 	btDefaultMotionState* carMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), initialPosition));  
 
@@ -307,7 +311,7 @@ int main(int argc, char* argv[])
 	//Friction du corps principal
 	carRigidBody->setFriction(0.7);
 
-	// CrÈation du vÈhicule
+	// Cr√©ation du v√©hicule
 	btRaycastVehicle::btVehicleTuning tuning; 
 	tuning.m_suspensionStiffness = 20.0; 
 	tuning.m_suspensionDamping = 2.3; 
@@ -315,11 +319,11 @@ int main(int argc, char* argv[])
 
 	btVehicleRaycaster* vehicleRayCaster = new btDefaultVehicleRaycaster(world); 
 	btRaycastVehicle* vehicle = new btRaycastVehicle(tuning, carRigidBody, vehicleRayCaster); 
-	// Position des roues par rapport au centre du vÈhicule
+	// Position des roues par rapport au centre du v√©hicule
 	btVector3 connectionPointCS0_0(-1.5, -1.0, 1.5); //avant gauche
 	btVector3 connectionPointCS0_1(1.5, -1.0, 1.5); //avant droit
-	btVector3 connectionPointCS0_2(-1.5, -1.0, -1.5); //arriËre gauche
-	btVector3 connectionPointCS0_3(1.5, -1.0, -1.5); //arriËre droit
+	btVector3 connectionPointCS0_2(-1.5, -1.0, -1.5); //arri√®re gauche
+	btVector3 connectionPointCS0_3(1.5, -1.0, -1.5); //arri√®re droit
 
 	//Orientation des roues
 	btVector3 wheelDirectionCS0(0, -1, 0); 
@@ -342,8 +346,8 @@ int main(int argc, char* argv[])
 	}
 
 	//Amortissement des roues
-	btScalar linearDamping(0.2); // Valeurs ‡ ajuster 
-	btScalar angularDamping(0.1); // Valeurs ‡ ajuster 
+	btScalar linearDamping(0.2); // Valeurs √† ajuster 
+	btScalar angularDamping(0.1); // Valeurs √† ajuster 
  
 	vehicle->getRigidBody()->setDamping(linearDamping, angularDamping); 
 
@@ -354,19 +358,19 @@ int main(int argc, char* argv[])
 
 	//Objet OpenGL
 	Object vehicle_core_render(box_path, 2.0, 1.5, 32.0, 0.0, player_materialColour);  
-	vehicle_core_render.makeObject(shader, false);
+	vehicle_core_render.makeObject(shader, simpleDepthShader, false);
 
 	Object vehicle_wheel0_render(wheels_r06_h05_path, 2.0, 1.5, 32.0, 0.0, wheels_materialColour);
-	vehicle_wheel0_render.makeObject(shader, false); 
+	vehicle_wheel0_render.makeObject(shader, simpleDepthShader, false);
 	Object vehicle_wheel1_render(wheels_r06_h05_path, 2.0, 1.5, 32.0, 0.0, wheels_materialColour);
-	vehicle_wheel1_render.makeObject(shader, false);
+	vehicle_wheel1_render.makeObject(shader, simpleDepthShader, false);
 	Object vehicle_wheel2_render(wheels_r06_h05_path, 2.0, 1.5, 32.0, 0.0, wheels_materialColour);
-	vehicle_wheel2_render.makeObject(shader, false);
+	vehicle_wheel2_render.makeObject(shader, simpleDepthShader, false);
 	Object vehicle_wheel3_render(wheels_r06_h05_path, 2.0, 1.5, 32.0, 0.0, wheels_materialColour);
-	vehicle_wheel3_render.makeObject(shader, false);
+	vehicle_wheel3_render.makeObject(shader, simpleDepthShader, false);
 
 	Object vehicle_canon_render(canon_path, 2.0, 1.5, 32.0, 0.0, canon_materialColour);
-	vehicle_canon_render.makeObject(shader, false); 
+	vehicle_canon_render.makeObject(shader, simpleDepthShader, false); 
 
 	//----------------------------------------------------------
 
@@ -375,8 +379,7 @@ int main(int argc, char* argv[])
 	char plane_path[] = PATH_TO_OBJECTS "/plane.obj";
 	glm::vec3 plane_materialColour = glm::vec3(0.922, 0.765, 0.349);
 	Object plane(plane_path, 1.0, 0.0, 32.0, 0.0, plane_materialColour);
-	plane.makeObject(shader, false);
-	
+	plane.makeObject(shader, simpleDepthShader, false);
 
 	//Model matrix definition
 	glm::mat4 plane_model = glm::mat4(1.0);
@@ -388,18 +391,9 @@ int main(int argc, char* argv[])
 	//OpenGL Light object
 
 	//Path and properties definition
-	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
+	glm::vec3 lightColour = glm::vec3(0.0, 1.0, 1.0);
 	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
-	light.makeObject(shader, false);
-	
-
-	//Model matrix definition
-	glm::mat4 light_model = glm::mat4(1.0);
-	//Definition of a variable for its position since it's gonna move
-	glm::vec3 light_pos = glm::vec3(1.0, 1.0, 0.0); 
-	light_model = glm::translate(light_model, light_pos);
-	light_model = glm::scale(light_model, glm::vec3(0.2, 0.2, 0.2));
-	glm::mat4 inverse_light_model = glm::transpose(glm::inverse(light_model));
+	light.makeObject(shader, simpleDepthShader, false);
 
 
 	//Creation of a screen quad
@@ -426,31 +420,6 @@ int main(int argc, char* argv[])
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-	
-	//Ambient light
-	float ambient = 0.5;
-
-	//Camera matrices
-	glm::mat4 view = camera.GetViewMatrix();
-	glm::mat4 perspective = camera.GetProjectionMatrix();
-
-	//Rendering
-	glfwSwapInterval(1);
-	shader.use();
-	shader.setFloat("u_ambient", ambient);
-	shader.setInteger("depthMap", 0);
-
-	//Delimitation for depth
-	float near_plane = 1.0f; 
-	float far_plane = 100.0f;
-
-	screenShader.use();
-	screenShader.setInteger("colorTexture", 0);
-	screenShader.setInteger("normalTexture", 1);
-	screenShader.setInteger("depthTexture", 2);
-	screenShader.setFloat("near_plane", near_plane);
-	screenShader.setFloat("far_plane", far_plane); 
-
 	// framebuffer configuration
 	// -------------------------
 	unsigned int framebuffer;
@@ -474,22 +443,22 @@ int main(int argc, char* argv[])
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, textureNormalbuffer, 0);
-	//generate and set parameters of the depth texture
+	//generate and set param√©t√©ers of the depth texture
 	glGenTextures(1, &textureDepthbuffer);
 	glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, textureDepthbuffer, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textureDepthbuffer, 0);
 	// create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
-	unsigned int rbo;
-	glGenRenderbuffers(1, &rbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height); // use a single renderbuffer object for both a depth AND stencil buffer.
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+	//unsigned int rbo;
+	//glGenRenderbuffers(1, &rbo);
+	//glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height); // use a single renderbuffer object for both a depth AND stencil buffer.
+	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
 	// tell openGL that we want two textures as the output of this framebuffer
-	GLenum attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-	glDrawBuffers(3, attachments);
+	GLenum attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_DEPTH_ATTACHMENT};
+	glDrawBuffers(2, attachments);
 	// now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -502,20 +471,26 @@ int main(int argc, char* argv[])
 	const unsigned int SHADOW_WIDTH = 1024.0, SHADOW_HEIGHT = 1024.0;
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	// create depth cubemap texture
 	unsigned int depthCubemap;
 	glGenTextures(1, &depthCubemap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 	for (unsigned int i = 0; i < 6; ++i)
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	
 	// attach depth texture as FBO's depth buffer
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		// G√©rer l'erreur, par exemple, afficher un message d'erreur
+		std::cerr << "Framebuffer is not complete!" << std::endl;
+	}
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -527,13 +502,41 @@ int main(int argc, char* argv[])
 	double xposIn; 
 	double yposIn;
 
-	double lastShootTime = 0.0;
-	const double shootDelay = 0.5; // dÈlai entre chaque tir
+	//Ambient light
+	float ambient = 0.3;
+
+	//Camera matrices
+	glm::mat4 view = camera.GetViewMatrix();
+	glm::mat4 perspective = camera.GetProjectionMatrix();
+
+	//Particles system
+	ParticleGenerator particleGen(particleShader, 100, camera);
+
+	//Rendering
+	glfwSwapInterval(1);
+
+	glm::vec3 background_color = glm::vec3(250.0/255,180.0/255, 140.0/255);
+	
+	screenShader.use();
+	screenShader.setInteger("colorTexture", 0);
+	screenShader.setInteger("normalTexture", 1);
+	screenShader.setInteger("depthTexture", 2);
+	screenShader.setVector3f("backgroundColor", background_color);
+
+	shader.use();
+	shader.setFloat("u_ambient", ambient);
+	shader.setInteger("depthMap", 0); 
+
+	glm::vec3 light_pos;
+	glm::mat4 light_model;
+  
+  double lastShootTime = 0.0;
+	const double shootDelay = 0.5; // d√©lai entre chaque tir
 
 	while (!glfwWindowShouldClose(window)) {
-		processInput(window,shader, vehicle);
+		processInput(window,shader, simpleDepthShader, vehicle);
 
-		//Tir de sphere devant le vÈhicule
+		//Tir de sphere devant le v√©hicule
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && (glfwGetTime() - lastShootTime) > shootDelay) {
 
 			lastShootTime = glfwGetTime();
@@ -544,41 +547,44 @@ int main(int argc, char* argv[])
 			// Position moyenne des deux roues avant
 			btVector3 avgWheelPos = (wheelPos0 + wheelPos1) * 0.5;
 
-			// Position initiale de la sphËre ‡ un mËtre devant les roues avant
+			// Position initiale de la sph√®re √† un m√®tre devant les roues avant
 			btVector3 baseNormalLocal = vehicle->getWheelInfo(4).m_worldTransform.getBasis() * btVector3(0, 1, 0);
 			btVector3 wheelPositionWorld = vehicle->getWheelInfo(4).m_worldTransform * vehicle->getWheelInfo(4).m_chassisConnectionPointCS; 
 			btVector3 initialPosition = btVector3(wheelPositionWorld.getX() + baseNormalLocal.getX(), wheelPositionWorld.getY(), wheelPositionWorld.getZ()+ baseNormalLocal.getZ());
 
-			// CrÈation de la sphËre dans le monde Bullet
+			// Cr√©ation de la sph√®re dans le monde Bullet
 			btRigidBody* shootingSphere = addSphere(sphere_radius, initialPosition.getX(), initialPosition.getY(), initialPosition.getZ(), 1.0);
 			bodies_bullet.push_back(shootingSphere);
 
-			// Appliquer une vÈlocitÈ ‡ la sphËre dans la direction du canon
+			// Appliquer une v√©locit√© √† la sph√®re dans la direction du canon
 			btVector3 baseNormalLocal_norm = baseNormalLocal.normalize();
 			shootingSphere->setLinearVelocity(baseNormalLocal_norm * shooting_strength);
 
-			// CrÈation de l'objet OpenGL
+			// Cr√©ation de l'objet OpenGL
 			Object sphereRender(sphere_path, 1.0, 0.8, 32.0, 0.0, shooted_sphere_materialColour);
-			sphereRender.makeObject(shader, false);
+			sphereRender.makeObject(shader, simpleDepthShader, false);
 			bodies_render.push_back(sphereRender);
 		};
 
 		//Camera on player
 		glfwGetCursorPos(window, &xposIn, &yposIn);  
 		view = camera.GetViewMatrixOnPlayer(xposIn, yposIn, vehicle_core_render.getObjectPosition(carRigidBody),10.0);
+
 		double now = glfwGetTime();
 
 		//Bullet simulation
 		world->stepSimulation(1 / 60.0,10); //Stepping simulation for one frame
 
 		//Light movement
-		light_pos = glm::vec3(3*std::cos(now), 1.0, 3*std::sin(now)); 
-
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		light_pos = glm::vec3(5.0*sin(now), 2.0, 5.0*cos(now));
+		light_model = glm::translate(glm::mat4(1.0), light_pos);
+		light_model = glm::scale(light_model, glm::vec3(0.1, 0.1, 0.1));
 
 		// 0. create depth cubemap transformation matrices
 		// -----------------------------------------------
+		float near_plane = 1.0f;
+		float far_plane = 100.0f;
+
 		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
 		std::vector<glm::mat4> shadowTransforms;
 		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
@@ -589,33 +595,28 @@ int main(int argc, char* argv[])
 		shadowTransforms.push_back(shadowProj * glm::lookAt(light_pos, light_pos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
 
 		// RENDER SCENE TO DEPTH CUBEMAP
-		// ----------Initialising cubemap and depth buffer
+		// ---------- Initialising cubemap and depth buffer
 		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+		glEnable(GL_DEPTH_TEST);
 		glClear(GL_DEPTH_BUFFER_BIT);
+
 		simpleDepthShader.use();
-		simpleDepthShader.setMatrix4("shadowMatrices[0]", shadowTransforms[0]);
-		simpleDepthShader.setMatrix4("shadowMatrices[1]", shadowTransforms[1]);
-		simpleDepthShader.setMatrix4("shadowMatrices[2]", shadowTransforms[2]);
-		simpleDepthShader.setMatrix4("shadowMatrices[3]", shadowTransforms[3]);
-		simpleDepthShader.setMatrix4("shadowMatrices[4]", shadowTransforms[4]);
-		simpleDepthShader.setMatrix4("shadowMatrices[5]", shadowTransforms[5]);
-		
+
+		for (unsigned int i = 0; i < 6; ++i) {
+			std::string uniformName = "shadowMatrices[" + std::to_string(i) + "]";
+			simpleDepthShader.setMatrix4(uniformName.c_str(), shadowTransforms[i]);
+		}
 		simpleDepthShader.setFloat("far_plane", far_plane);
-		simpleDepthShader.setVector3f("lightPos", light_pos);
-		//-----------Rendering in depth cubemap
+		simpleDepthShader.setVector3f("light_pos", light_pos);
+
+		//----------- Rendering in depth cubemap
 		//Objects drawing
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_bullet[i], glm::vec3(1.0));
 		}
 		//Plane drawing
 		plane.draw_without_bullet_object_VFG(simpleDepthShader, plane_model);
-		//Light drawing
-		light_model = glm::translate(glm::mat4(1.0), light_pos);
-		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
-		light.draw_without_bullet_object_VFG(simpleDepthShader, light_model);
-		//Destroyer drawing
-		
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// bind to framebuffer and draw scene as we normally would to color texture 
@@ -623,10 +624,11 @@ int main(int argc, char* argv[])
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		glEnable(GL_DEPTH_TEST); // enable depth testing (is disabled for rendering screen-space quad)
 		// make sure we clear the framebuffer's content
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(background_color.x, background_color.y, background_color.z, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+
 		shader.use();
 		shader.setFloat("far_plane", far_plane);
 		shader.setFloat("near_plane", near_plane);
@@ -650,9 +652,14 @@ int main(int argc, char* argv[])
 		//Plane drawing
 		plane.draw_without_bullet_object(shader, plane_model);
 		//Light drawing
-		light_model = glm::translate(glm::mat4(1.0), light_pos);
-		light_model = glm::scale(light_model, glm::vec3(0.5, 0.5, 0.5));
 		light.draw_without_bullet_object(shader, light_model);
+		//Particles system
+		float yMax = 100.0;
+		float particleFarPlane = 100.0;
+		float gravity = 10.0;
+		glm::vec3 wind = glm::vec3(2.0, 0.0, 2.0);
+		particleGen.Update(1.0/60, yMax, 100.0, 10.0, wind, 10.0, camera);
+		particleGen.Draw(camera);
 		
 		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -669,27 +676,25 @@ int main(int argc, char* argv[])
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, textureNormalbuffer);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, textureDepthbuffer); 
+		glBindTexture(GL_TEXTURE_2D, textureDepthbuffer);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-		//glActiveTexture(GL_TEXTURE0);
 		
 		fps(now);
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
 	}
-
 	
 	// Nettoyer les ressources Bullet Physics
 	for (int i = 0; i < bodies_bullet.size(); i++) { 
 		btCollisionObject* obj = bodies_bullet[i]; 
 		world->removeCollisionObject(obj); 
 		btCollisionShape* shape = obj->getCollisionShape(); 
-		delete obj;  // Ne supprime que le pointeur, pas l'objet rÈel
+		delete obj;  // Ne supprime que le pointeur, pas l'objet r√©el
 		delete shape; 
 	}
 
-	// Supprimer le vÈhicule Bullet
+	// Supprimer le v√©hicule Bullet
 	delete vehicleRayCaster; 
 	delete vehicle; 
 
@@ -714,11 +719,9 @@ int main(int argc, char* argv[])
 	glDeleteFramebuffers(1, &framebuffer); 
 	glDeleteFramebuffers(1, &depthMapFBO); 
 
-	// Fermer la fenÍtre GLFW
+	// Fermer la fen√™tre GLFW
 	glfwDestroyWindow(window); 
 	glfwTerminate(); 
-
-	return 0;
 
 	return 0;
 }
@@ -753,18 +756,17 @@ float randomFloat(int a, int b)
 		return (float)randomInt(a, b) + randomFloat();
 	}
 
-// ParamËtres de mouvement du vÈhicule :
+// Param√®tres de mouvement du v√©hicule :
 
-const float accelerationForce = 5000.0f;  // Force d'accÈlÈration
+const float accelerationForce = 5000.0f;  // Force d'acc√©l√©ration
 float brakeForce = -5000.0f;         // Force de freinage
 const float steeringIncrement = 0.05f; 
-const float steeringIncrement2 = 0.02f;// IncrÈment de rotation
-const float decelerationForce = -100.0f;  // Force de dÈcÈlÈration
+const float steeringIncrement2 = 0.02f;// Incr√©ment de rotation
+const float decelerationForce = -100.0f;  // Force de d√©c√©l√©ration
 float maxSteeringAngle = 1.6;
 
 
-void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) {
-
+void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader, btRaycastVehicle* vehicle) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
@@ -792,10 +794,10 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 	// --------------------------------------------------------------
 	//if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 	//{
-		// DÈplacement de la sphËre dans la direction spÈcifiÈe par le vecteur cameraFront
+		// D√©placement de la sph√®re dans la direction sp√©cifi√©e par le vecteur cameraFront
 		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins
 		//btVector3 forceDirection(-camera.Front.x, 0.0f, -camera.Front.z);
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisÈ
+		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalis√©
 		//btVector3 force = forceMagnitude * forceDirection;
 
 		//player->applyCentralForce(force);
@@ -803,10 +805,10 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 
 	//if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) 
 	//{
-		// DÈplacement de la sphËre dans la direction spÈcifiÈe par le vecteur cameraFront
+		// D√©placement de la sph√®re dans la direction sp√©cifi√©e par le vecteur cameraFront
 		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
 		//btVector3 forceDirection(camera.Front.x, 0.0f, camera.Front.z); 
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisÈ 
+		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalis√© 
 		//btVector3 force = forceMagnitude * forceDirection; 
 
 		//player->applyCentralForce(force);
@@ -818,10 +820,10 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 		//glm::vec3 perpendicularDirection = glm::cross(glm::vec3(camera.Front.x, 0.0f, camera.Front.z), glm::vec3(0.0f, 1.0f, 0.0f));
 		//perpendicularDirection = glm::normalize(perpendicularDirection);  
 
-		// DÈplacement de la sphËre dans la direction spÈcifiÈe
+		// D√©placement de la sph√®re dans la direction sp√©cifi√©e
 		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
 		//btVector3 forceDirection(perpendicularDirection.x, 0.0f, perpendicularDirection.z); 
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisÈ 
+		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalis√© 
 		//btVector3 force = forceMagnitude * forceDirection; 
 
 		//player->applyCentralForce(force);
@@ -833,10 +835,10 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 		//glm::vec3 perpendicularDirection = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(camera.Front.x, 0.0f, camera.Front.z));
 		//perpendicularDirection = glm::normalize(perpendicularDirection);
 
-		// DÈplacement de la sphËre dans la direction spÈcifiÈe
+		// D√©placement de la sph√®re dans la direction sp√©cifi√©e
 		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
 		//btVector3 forceDirection(perpendicularDirection.x, 0.0f, perpendicularDirection.z);
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisÈ 
+		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalis√© 
 		//btVector3 force = forceMagnitude * forceDirection;
 
 		//player->applyCentralForce(force);
@@ -845,11 +847,21 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 
 	//Moving the vehicle
 
-	// AccÈlÈration
+	// Acc√©l√©ration
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		vehicle->applyEngineForce(accelerationForce, 2);
 		vehicle->applyEngineForce(accelerationForce, 3);
 	}
+
+
+	//Adding sphere to the world
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		bodies_bullet.push_back(addSphere(sphere_radius, randomFloat(1, 3), 20.0, randomFloat(1, 3), 1.0));
+		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		sphere_render.makeObject(shader, simpleDepthShader, false);
+		bodies_render.push_back(sphere_render);
+
+	};
 
 	else {
 		vehicle->applyEngineForce(0.0, 2); 
@@ -891,6 +903,7 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 		float currentSteering = vehicle->getSteeringValue(4);
 		float newSteering = currentSteering - steeringIncrement2;
 
+
 		vehicle->setSteeringValue(newSteering, 4);
 	}
 	
@@ -904,7 +917,7 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 
 		//OpenGL object
 		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, shooted_cylinder_materialColour);
-		cylinder_render.makeObject(shader, false);
+		cylinder_render.makeObject(shader, simpleDepthShader, false);
 		bodies_render.push_back(cylinder_render);
 	};
 
@@ -918,15 +931,9 @@ void processInput(GLFWwindow* window, Shader shader, btRaycastVehicle* vehicle) 
 
 		//OpenGL object
 		Object box_render(box_path, 2.0, 1.5, 32.0, 0.0, shooted_box_materialColour);
-		box_render.makeObject(shader, false);
+		box_render.makeObject(shader, simpleDepthShader, false);
 		bodies_render.push_back(box_render);
 	};
-	//Adding sphere to the world
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) { 
-		bodies_bullet.push_back(addSphere(sphere_radius, randomFloat(1, 3), 20.0, randomFloat(1, 3), 1.0)); 
-		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour); 
-		sphere_render.makeObject(shader, false); 
-		bodies_render.push_back(sphere_render); 
 
 	};
 };

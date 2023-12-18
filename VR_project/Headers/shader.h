@@ -73,6 +73,12 @@ public:
     void setVector3f(const GLchar* name, const glm::vec3& value) {
         glUniform3f(glGetUniformLocation(ID, name), value.x, value.y, value.z);
     }
+    void setVector4f(const GLchar* name, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
+        glUniform4f(glGetUniformLocation(ID, name), x, y, z, w);
+    }
+    void setVector4f(const GLchar* name, const glm::vec4& value) {
+        glUniform4f(glGetUniformLocation(ID, name), value.x, value.y, value.z, value.w);
+    }
     void setMatrix4(const GLchar* name, const glm::mat4& matrix) {
         glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, GL_FALSE, glm::value_ptr(matrix));
     }
