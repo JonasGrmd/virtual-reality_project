@@ -7,6 +7,9 @@
 #include <glm/glm.hpp>
 #include<glm/gtc/matrix_transform.hpp>
 
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
+
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
     FORWARD,
@@ -33,6 +36,7 @@ public:
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
+    glm::vec3 PlayerPosition;
     // euler Angles
     float Yaw;
     float Pitch;
@@ -70,6 +74,42 @@ public:
     {
         return glm::lookAt(this->Position, this->Position + this->Front, this->Up);
     }
+
+    // return the view matrix on the player
+    glm::mat4 GetViewMatrixOnPlayer(float xposIn, float yposIn, glm::vec3 playerPosition,float radius, GLboolean constrainPitch = true)
+    {
+        float xpos = static_cast<float>(xposIn);
+        float ypos = static_cast<float>(yposIn);
+
+        if (firstMouse) {
+            lastX = xposIn;
+            lastY = yposIn;
+            firstMouse = false;
+        }
+
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+        lastX = xpos; 
+        lastY = ypos; 
+
+        xoffset *= MouseSensitivity; 
+        yoffset *= MouseSensitivity;
+
+        glm::mat4 rotationPhi = glm::rotate(glm::mat4(1.0f), -glm::radians(xoffset), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 rotationTheta = glm::rotate(glm::mat4(1.0f), -glm::radians(yoffset), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::mat4 rotationMatrix = rotationTheta * rotationPhi;
+
+        glm::vec4 resultVector = glm::normalize(rotationMatrix * glm::vec4(Position.x - playerPosition.x, Position.y - playerPosition.y, Position.z - playerPosition.z, 1.0f))*radius;
+
+        if (playerPosition.y + resultVector.y < 0.1) { //0.0 is the ground level
+            resultVector.y = 0.0 - playerPosition.y;
+        }
+        this->Position = glm::vec3(playerPosition.x + resultVector.x, playerPosition.y + resultVector.y, playerPosition.z + resultVector.z);
+        updateCameraVectors();
+
+        return glm::lookAt(this->Position, playerPosition, this->Up);
+    }
+
 
     glm::mat4 GetProjectionMatrix(float fov=45.0, float ratio=16.0/9.0, float near=0.01, float far=100.0)
     {
@@ -167,8 +207,14 @@ private:
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
         front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-        Front = glm::normalize(front);
+        Front = glm::normalize(front); 
         // also re-calculate the Right and Up vector
+        Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        Up = glm::normalize(glm::cross(Right, Front));
+    }
+
+    void updateCameraVectorsPlayer()
+    {
         Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
         Up = glm::normalize(glm::cross(Right, Front));
     }

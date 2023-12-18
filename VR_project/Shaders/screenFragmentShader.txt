@@ -4,9 +4,20 @@ out vec4 FragColor;
 
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
+uniform sampler2D depthTexture; 
+
+uniform float near_plane;
+uniform float far_plane;
 
 const float offset_x = 1.0 / 1920.0;  
 const float offset_y = 1.0 / 1080.0;
+
+float LinearizeDepth(float z)
+{
+     float n = near_plane;
+     float f = far_plane;
+     return (2.0 * n) / (f + n - z * (f - n));  
+}
 
 void main()
 {
@@ -35,27 +46,37 @@ void main()
     
     vec3 sampleNormTex[9];
     vec3 sampleColorTex[9];
+    vec3 sampleDepthTex[9];
+
     for(int i = 0; i < 9; i++)
     {
         sampleNormTex[i] = vec3(texture(normalTexture, TexCoords.st + offsets[i]));
         sampleColorTex[i] = vec3(texture(colorTexture, TexCoords.st + offsets[i]));
+        sampleDepthTex[i] = vec3(LinearizeDepth(texture(depthTexture, TexCoords.st + offsets[i]).r));
     }
     vec3 Ngx = vec3(0.0);
     vec3 Cgx = vec3(0.0);
+    vec3 Dgx = vec3(0.0);
     for (int i = 0; i < 9; i++){
         Ngx += sx[i] * sampleNormTex[i];
         Cgx += sx[i] * sampleColorTex[i];
+        Dgx += sx[i] * sampleDepthTex[i];
     }
     vec3 Ngy = vec3(0.0);
     vec3 Cgy = vec3(0.0);
+    vec3 Dgy = vec3(0.0);
     for (int i = 0; i < 9; i++){
         Ngy += sy[i] * sampleNormTex[i];
         Cgy += sy[i] * sampleColorTex[i];
+        Dgy += sy[i] * sampleDepthTex[i];
     }
     float Ng = sqrt(pow(length(Ngx), 2.0)+pow(length(Ngy), 2.0));
     float Cg = sqrt(pow(length(Cgx), 2.0)+pow(length(Cgy), 2.0));
+    float Dg = sqrt(pow(length(Dgx), 2.0)+pow(length(Dgy), 2.0));
 
-    float g = max(Ng,Cg);
+    if(Cg <0.5){Cg = 0.0;};
+
+    float g = max(Cg,Ng);
     
     vec3 initialColor = vec3(texture(colorTexture, TexCoords.st));
     vec3 col = initialColor - vec3(g);
