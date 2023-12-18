@@ -1,7 +1,9 @@
 #version 330 core
+precision highp float;
+
 out vec4 FragColor;
 out vec4 FragNormal;
-precision mediump float; 
+out float Depth;
 
 in vec3 v_frag_coord;
 in vec3 v_normal; 
@@ -29,15 +31,31 @@ float ShadowCalculation(vec3 fragPos)
     // get vector between fragment position and light position
     vec3 fragToLight = fragPos - u_light_pos;
     // use the light to fragment vector to sample from the depth map    
-    float closestDepth = texture(depthMap, fragToLight).r;
+    float closestDepth = texture(depthMap, fragToLight).x;
     // it is currently in linear range between [0,1]. Re-transform back to original value
     closestDepth *= far_plane;
     // now get current linear depth as the length between the fragment and light position
     float currentDepth = length(fragToLight);
-    // now test for shadows
-    float bias = 0.05; 
-    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;
 
+    // now test for shadows
+    float shadow  = 0.0;
+	float bias    = 0.05; 
+	float samples = 4.0;
+	float offset  = 0.1;
+	for(float x = -offset; x < offset; x += offset / (samples * 0.5))
+	{
+		for(float y = -offset; y < offset; y += offset / (samples * 0.5))
+		{
+			for(float z = -offset; z < offset; z += offset / (samples * 0.5))
+			{
+				float closestDepth = texture(depthMap, fragToLight + vec3(x, y, z)).r; 
+				closestDepth *= far_plane;   // undo mapping [0;1]
+				if(currentDepth - bias > closestDepth)
+                shadow += 1.0;
+			}
+		}
+	}
+	shadow /= (samples * samples * samples);
     return shadow;
 } 
 
@@ -57,22 +75,24 @@ void main() {
 	float attenuation = 1.0/(1.0+ 0.2*pow(length(u_light_pos - v_frag_coord),1)+0.0*pow(length(u_light_pos - v_frag_coord),2));
 
 	float shadow = ShadowCalculation(v_frag_coord);
-	shadow = 0.0;
 
 	//Compute the value for the light
-	if (length(specular*attenuation*materialColour) < 0.1){
-		if (diff > 0.2){
+	if (length(specular*attenuation*materialColour) < 0.2){
+		if (diff > 0.1){
 		diff = 0.8;
 		diffuse = diff*lightColour;
 		}
 		FragColor = vec4(materialColour*(ambient + u_emissive + (1.0-shadow)*(diffuse + specular)*attenuation), 1.0); 
 	}
 	else{
-		FragColor = vec4(materialColour*ambient + (lightColour*(attenuation) + materialColour*(1-attenuation))*(1.0-shadow),1.0);
-		//FragColor = vec4(lightColour,1.0);
+		FragColor = vec4(materialColour*ambient + lightColour*(1.0-shadow),1.0);
 	}
-
-	//FragColor = vec4(vec3(closestDepth / far_plane), 1.0);  
 	
-	FragNormal = vec4((v_normal_2 + vec3(1.0))*0.5,1.0);
+	//FragNormal computation (we want it null for the light object to avoid black lines on lights)
+	if (u_emissive == 0.0) FragNormal = vec4((v_normal + vec3(1.0))*0.5,1.0);
+	else FragNormal = vec4(vec3(0.0),1.0);
+
+	//FragDepth computation
+	float Depth = length(v_frag_coord - u_view_pos)/far_plane;
+	gl_FragDepth = Depth;
 };
