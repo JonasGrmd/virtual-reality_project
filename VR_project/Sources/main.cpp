@@ -85,9 +85,9 @@ void APIENTRY glDebugOutput(GLenum source,
 Camera camera(glm::vec3(0.0, 10.0, 50.0));
 
 std::vector<btRigidBody*> bodies_bullet;
-std::vector<btRigidBody*> bodies_spheres_bullet;
+std::vector<btRigidBody*> bodies_shaderNL_bullet;
 std::vector<Object> bodies_render;
-std::vector<Object> bodies_spheres_render;
+std::vector<Object> bodies_shaderNL_render;
 
 //For Bullet object
 float shooting_strength = 100.0;
@@ -172,7 +172,7 @@ btRigidBody* addBox(float width, float height, float depth, float x, float y, fl
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, box, inertia);
 	btRigidBody* body = new btRigidBody(info);
-	body->setFriction(0.5); 
+	body->setFriction(0.8); 
 	world->addRigidBody(body);
 	return body;
 }
@@ -411,7 +411,7 @@ int main(int argc, char* argv[])
 	float pi = 3.14159265359;
 	for (int i = 0; i < sphere_number; i++) {
 		if (i < sphere_number / 2) {
-			bodies_spheres_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
+			bodies_shaderNL_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
 		}
 		else
 		{
@@ -424,7 +424,7 @@ int main(int argc, char* argv[])
 		Object sphere_render(sphere_path, 1.0, 1.0, 32.0, 0.0, sphere_materialColour);
 		if (i < sphere_number/2) {
 			sphere_render.makeObject(shaderNL, simpleDepthShader, false);
-			bodies_spheres_render.push_back(sphere_render); 
+			bodies_shaderNL_render.push_back(sphere_render); 
 		}
 		else
 		{
@@ -437,13 +437,53 @@ int main(int argc, char* argv[])
 		//cylinder_render.makeObject(shader, simpleDepthShader, false); 
 		//bodies_render.push_back(cylinder_render); 
 	}
-	//Texture on box
+	//Bullet and OpenGL columns of cubes
+	//---------------------------------------------------------------------------------------------
+	char cube_path[] = PATH_TO_OBJECTS "/cube.obj";
+	glm::vec3 cube_materialColour = glm::vec3(0.85, 0.0, 0.85); 
+	float cube_mass = 0.8;
+	float y_it = 0.0;
 
-	//btRigidBody* box_texture = addBox(3.0*2, 10.0*2, 5.0*2, 5.0, 10.0, 0.0, 10000.0);
-	//bodies_bullet.push_back(box_texture);
-	//Object box_texture_render(box_texture_path, 1.0, 1.0, 100.0, 0.0, canon_materialColour);
-	//box_texture_render.makeObject(shader, simpleDepthShader, true);
-	//bodies_render.push_back(box_texture_render);
+	for (int i = 0;i < 10;i++) {
+		y_it += 2.01;
+		//column 1 (60 cubes)
+		bodies_bullet.push_back(addBox( 2*1.0, 2*1.0, 2*1.0, -25.0, 0.5+y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -29.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -34.0, cube_mass));
+
+		//column 2 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 29.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 34.0, cube_mass));
+
+		//column 3 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 29.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -34.0, cube_mass));
+
+		//column 4 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -29.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 34.0, cube_mass));
+	}
+	for (int i = 0;i < 240;i++) {
+		Object cube_render(cube_path, 1.0, 1.0, 32.0, 0.0, cube_materialColour);
+		cube_render.makeObject(shader, simpleDepthShader, false);
+		bodies_render.push_back(cube_render);
+	}
+	//---------------------------------------------------------------------------------------------
 
 	//GLuint texture; 
 	//glGenTextures(1, &texture); 
@@ -793,8 +833,8 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_bullet[i], glm::vec3(1.0));
 		}
-		for (int i = 0; i < bodies_spheres_bullet.size(); i++) {
-			bodies_spheres_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_spheres_bullet[i], glm::vec3(1.0));
+		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) {
+			bodies_shaderNL_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_shaderNL_bullet[i], glm::vec3(1.0));
 		}
 		//Ground drawing
 		ground.draw_without_bullet_object_VFG(simpleDepthShader, ground_model); 
@@ -855,8 +895,8 @@ int main(int argc, char* argv[])
 		shaderNL.setMatrix4("V", view); 
 		shaderNL.setMatrix4("P", perspective); 
 		shaderNL.setVector3f("u_view_pos", camera.Position); 
-		for (int i = 0; i < bodies_spheres_bullet.size(); i++) { 
-			bodies_spheres_render[i].draw_on_bullet_object(shaderNL, bodies_spheres_bullet[i], glm::vec3(1.0)); 
+		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) { 
+			bodies_shaderNL_render[i].draw_on_bullet_object(shaderNL, bodies_shaderNL_bullet[i], glm::vec3(1.0)); 
 		}
 		//Particles system
 		//float yMax = 100.0;
@@ -898,8 +938,8 @@ int main(int argc, char* argv[])
 		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
 		delete shape; 
 	}
-	for (int i = 0; i < bodies_spheres_bullet.size(); i++) {
-		btCollisionObject* obj = bodies_spheres_bullet[i];
+	for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) {
+		btCollisionObject* obj = bodies_shaderNL_bullet[i];
 		world->removeCollisionObject(obj);
 		btCollisionShape* shape = obj->getCollisionShape();
 		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
@@ -975,7 +1015,7 @@ float randomFloat(int a, int b)
 const float accelerationForce = 10000.0f;  // Force d'accélération
 float brakeForce = -10000.0f;         // Force de freinage
 const float steeringIncrement = 0.05f; 
-const float steeringIncrement2 = 0.02f;// Incrément de rotation
+const float steeringIncrement2 = 0.03f;// Incrément de rotation
 const float decelerationForce = -100.0f;  // Force de décélération
 float maxSteeringAngle = 1.6;
 
