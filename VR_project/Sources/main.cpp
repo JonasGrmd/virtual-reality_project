@@ -15,7 +15,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
+#include <chrono> 
+#include <thread> 
 
 #include "./../Headers/camera.h"
 #include "./../Headers/shader.h"
@@ -84,7 +85,9 @@ void APIENTRY glDebugOutput(GLenum source,
 Camera camera(glm::vec3(0.0, 10.0, 50.0));
 
 std::vector<btRigidBody*> bodies_bullet;
+std::vector<btRigidBody*> bodies_spheres_bullet;
 std::vector<Object> bodies_render;
+std::vector<Object> bodies_spheres_render;
 
 //For Bullet object
 float shooting_strength = 100.0;
@@ -110,6 +113,8 @@ glm::vec3 shooted_cylinder_materialColour = glm::vec3(0.973, 1.0, 0.071);
 
 char box_path[] = PATH_TO_OBJECTS "/Shooting_box.obj";
 glm::vec3 shooted_box_materialColour = glm::vec3(0.012, 0.902, 0.8);
+
+char box_texture_path[] = PATH_TO_OBJECTS "/box_texture.obj";
 
 char wheels_r06_h05_path[] = PATH_TO_OBJECTS "/wheels_r06_h05.obj";
 glm::vec3 wheels_materialColour = glm::vec3(0.6, 0.6, 0.6);
@@ -335,6 +340,9 @@ int main(int argc, char* argv[])
 	}
 #endif
 
+	char fileVert0[128] = PATH_TO_SHADERS "/vertexShaderNormalLight.txt";
+	char fileFrag0[128] = PATH_TO_SHADERS "/fragmentShaderNormalLight.txt";
+	Shader shaderNL(fileVert0, fileFrag0);
 	char fileVert[128] = PATH_TO_SHADERS "/vertexShader.txt";
 	char fileFrag[128] = PATH_TO_SHADERS "/fragmentShader.txt";
 	Shader shader(fileVert, fileFrag);
@@ -397,25 +405,72 @@ int main(int argc, char* argv[])
 	ground_model = glm::scale(ground_model, glm::vec3(1.0));
 	glm::mat4 inverse_ground_model = glm::transpose(glm::inverse(ground_model)); 
 	//---------------------------------------------------------------------
-
 	//Bullet and OpenGL sphere and cylinder
 	//---------------------------------------------------------------------
-	int sphere_number = 5;
-	for (int i = 0; i < 5; i++) {
-		bodies_bullet.push_back(addSphere(sphere_radius, 2.0 + i*5.0, i*5, 0.0, 1.0));
-		bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, 2.0+i * 0.5, i * 5, 0.0, 1.0));
+	int sphere_number = 6;
+	float pi = 3.14159265359;
+	for (int i = 0; i < sphere_number; i++) {
+		if (i < sphere_number / 2) {
+			bodies_spheres_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
+		}
+		else
+		{
+			bodies_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
+		}
+		//bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, 2.0+i * 0.5, i * 5, 0.0, 1.0));
 	}
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < sphere_number; i++) {
 		Object sphere_render(sphere_path, 1.0, 1.0, 32.0, 0.0, sphere_materialColour);
-		sphere_render.makeObject(shader, simpleDepthShader, false);
-		bodies_render.push_back(sphere_render);
+		if (i < sphere_number/2) {
+			sphere_render.makeObject(shaderNL, simpleDepthShader, false);
+			bodies_spheres_render.push_back(sphere_render); 
+		}
+		else
+		{
+			sphere_render.makeObject(shader, simpleDepthShader, false);
+			bodies_render.push_back(sphere_render);
+		}
+		
 
-		Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-		cylinder_render.makeObject(shader, simpleDepthShader, false); 
-		bodies_render.push_back(cylinder_render); 
-
+		//Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		//cylinder_render.makeObject(shader, simpleDepthShader, false); 
+		//bodies_render.push_back(cylinder_render); 
 	}
+	//Texture on box
+
+	//btRigidBody* box_texture = addBox(3.0*2, 10.0*2, 5.0*2, 5.0, 10.0, 0.0, 10000.0);
+	//bodies_bullet.push_back(box_texture);
+	//Object box_texture_render(box_texture_path, 1.0, 1.0, 100.0, 0.0, canon_materialColour);
+	//box_texture_render.makeObject(shader, simpleDepthShader, true);
+	//bodies_render.push_back(box_texture_render);
+
+	//GLuint texture; 
+	//glGenTextures(1, &texture); 
+	//glActiveTexture(GL_TEXTURE0); 
+	//glBindTexture(GL_TEXTURE_2D, texture); 
+
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+
+	//stbi_set_flip_vertically_on_load(true);
+	//int imWidth, imHeight, imNrChannels;
+	//char file[128] = "stone_tex.jpg";
+	//unsigned char* data = stbi_load(file, &imWidth, &imHeight, &imNrChannels, 0); 
+	//if (data) 
+	//{
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imWidth, imHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data); 
+		//glGenerateMipmap(GL_TEXTURE_2D); 
+	//}
+	//else { 
+		//std::cout << "Failed to Load texture" << std::endl; 
+		//const char* reason = stbi_failure_reason(); 
+		//std::cout << reason << std::endl; 
+	//}
+
+	//stbi_image_free(data); 
 	//----------------------------------------------------------------------
 	
 	//Bullet and OpenGl player
@@ -643,9 +698,13 @@ int main(int argc, char* argv[])
 
 	shader.use();
 	shader.setFloat("u_ambient", ambient);
-	shader.setInteger("depthMap", 0); 
+	shader.setInteger("depthMap", 0);
 
-	glm::vec3 light_pos;
+	shaderNL.use();
+	shaderNL.setFloat("u_ambient", ambient);
+	shaderNL.setInteger("depthMap", 0);
+
+	glm::vec3 light_pos; 
 	glm::mat4 light_model;
   
   double lastShootTime = 0.0;
@@ -734,6 +793,9 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_bullet[i], glm::vec3(1.0));
 		}
+		for (int i = 0; i < bodies_spheres_bullet.size(); i++) {
+			bodies_spheres_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_spheres_bullet[i], glm::vec3(1.0));
+		}
 		//Ground drawing
 		ground.draw_without_bullet_object_VFG(simpleDepthShader, ground_model); 
 
@@ -782,6 +844,20 @@ int main(int argc, char* argv[])
 		ground.draw_without_bullet_object(shader, ground_model);
 		//Light drawing
 		light.draw_without_bullet_object(shader, light_model);
+
+		//
+		shaderNL.use(); 
+		shaderNL.setFloat("far_plane", far_plane); 
+		shaderNL.setFloat("near_plane", near_plane); 
+		shaderNL.setVector3f("u_light_pos", light_pos); 
+		shaderNL.setVector3f("lightColour", lightColour); 
+		//Camera info sent to shader
+		shaderNL.setMatrix4("V", view); 
+		shaderNL.setMatrix4("P", perspective); 
+		shaderNL.setVector3f("u_view_pos", camera.Position); 
+		for (int i = 0; i < bodies_spheres_bullet.size(); i++) { 
+			bodies_spheres_render[i].draw_on_bullet_object(shaderNL, bodies_spheres_bullet[i], glm::vec3(1.0)); 
+		}
 		//Particles system
 		//float yMax = 100.0;
 		//float particleFarPlane = 100.0;
@@ -821,6 +897,13 @@ int main(int argc, char* argv[])
 		btCollisionShape* shape = obj->getCollisionShape(); 
 		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
 		delete shape; 
+	}
+	for (int i = 0; i < bodies_spheres_bullet.size(); i++) {
+		btCollisionObject* obj = bodies_spheres_bullet[i];
+		world->removeCollisionObject(obj);
+		btCollisionShape* shape = obj->getCollisionShape();
+		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
+		delete shape;
 	}
 
 	// Supprimer le véhicule Bullet

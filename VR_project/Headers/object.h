@@ -378,7 +378,6 @@ public:
 		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
 		shader.setMatrix4("M", model);
 		shader.setMatrix4("itM", inverse_model);
-
 		shader.setVector3f("materialColour", this->materialColour);
 		shader.setFloat("u_diffuse", this->diffusion_coefficient);
 		shader.setFloat("u_specular", this->specularity_coefficient);
