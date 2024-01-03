@@ -401,6 +401,15 @@ public:
 		glBindVertexArray(0);
 	}
 
+	void draw_with_reflective_texture(Shader shader, glm::mat4 model, unsigned int cubeMapTexture) {
+		shader.setMatrix4("M", model);
+		glBindVertexArray(this->VAO);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
+		glDrawArrays(GL_TRIANGLES, 0, numVertices);
+		glBindVertexArray(0);
+	}
+
 	glm::vec3 getObjectPosition(btRigidBody* body) 
 	{
 		btTransform t;

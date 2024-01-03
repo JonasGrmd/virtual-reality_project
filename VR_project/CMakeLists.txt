@@ -5,7 +5,7 @@
 # Ajoutez une source à l'exécutable de ce projet.
 project("VR_project")
 
-add_executable (VR_project "Sources/main.cpp" "Headers/object.h" "Headers/shader.h" "Headers/shaderVFG.h" "Headers/camera.h" "Headers/particle.h" "Shaders/vertexShader.txt" "Shaders/fragmentShader.txt" "Shaders/screenFragmentShader.txt" "Shaders/screenVertexShader.txt" "Shaders/depthVertexShader.txt" "Shaders/depthFragmentShader.txt" "Shaders/depthGeometryShader.txt" "Shaders/particleVertexShader.txt" "Shaders/particleFragmentShader.txt")
+add_executable (VR_project "Sources/main.cpp" "Headers/object.h" "Headers/shader.h" "Headers/shaderVFG.h" "Headers/camera.h" "Headers/particle.h" "Shaders/normalLightningVertexShader.txt" "Shaders/normalLightningFragmentShader.txt" "Shaders/cartoonLightningVertexShader.txt" "Shaders/cartoonLightningFragmentShader.txt" "Shaders/screenFragmentShader.txt" "Shaders/screenVertexShader.txt" "Shaders/depthVertexShader.txt" "Shaders/depthFragmentShader.txt" "Shaders/depthGeometryShader.txt" "Shaders/particleVertexShader.txt" "Shaders/particleFragmentShader.txt")
 target_link_libraries(VR_project PUBLIC OpenGL::GL glfw glad LinearMath BulletCollision BulletDynamics)
 
 

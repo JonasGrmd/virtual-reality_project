@@ -96,5 +96,4 @@ void main() {
 	//FragDepth computation
 	float Depth = length(v_frag_coord - u_view_pos)/far_plane;
 	gl_FragDepth = Depth;
-
 };

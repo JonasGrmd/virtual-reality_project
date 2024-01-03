@@ -375,11 +375,11 @@ int main(int argc, char* argv[])
 	}
 #endif
 
-	char fileVert0[128] = PATH_TO_SHADERS "/vertexShaderNormalLight.txt";
-	char fileFrag0[128] = PATH_TO_SHADERS "/fragmentShaderNormalLight.txt";
+	char fileVert0[128] = PATH_TO_SHADERS "/normalLightningVertexShader.txt";
+	char fileFrag0[128] = PATH_TO_SHADERS "/normalLightningFragmentShader.txt";
 	Shader shaderNL(fileVert0, fileFrag0);
-	char fileVert[128] = PATH_TO_SHADERS "/vertexShader.txt";
-	char fileFrag[128] = PATH_TO_SHADERS "/fragmentShader.txt";
+	char fileVert[128] = PATH_TO_SHADERS "/cartoonLightningVertexShader.txt";
+	char fileFrag[128] = PATH_TO_SHADERS "/cartoonLightningFragmentShader.txt";
 	Shader shader(fileVert, fileFrag);
 	char fileScreenVert[128] = PATH_TO_SHADERS "/screenVertexShader.txt";
 	char fileScreenFrag[128] = PATH_TO_SHADERS "/screenFragmentShader.txt";
@@ -394,6 +394,10 @@ int main(int argc, char* argv[])
 	char fileCubeMapVert[128] = PATH_TO_SHADERS "/cubeMapVertexShader.txt";
 	char fileCubeMapFrag[128] = PATH_TO_SHADERS "/cubeMapFragmentShader.txt";
 	Shader skyBoxShader(fileCubeMapVert, fileCubeMapFrag);
+	char fileReflectiveVert[128] = PATH_TO_SHADERS "/reflectiveObjectVertexShader.txt";
+	char fileReflectiveFrag[128] = PATH_TO_SHADERS "/reflectiveObjectFragmentShader.txt";
+	Shader reflectiveObjectShader(fileReflectiveVert, fileReflectiveFrag);
+
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -647,6 +651,15 @@ int main(int argc, char* argv[])
 	light.makeObject(shader, simpleDepthShader, false);
 	//------------------------------------------------------------
 
+	//OpenGL Reflective object
+	//------------------------------------------------------------
+	Object reflectiveSphere(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
+	reflectiveSphere.makeObject(reflectiveObjectShader, simpleDepthShader, false);
+	glm::mat4 reflectiveSphereModel = glm::mat4(1.0);
+	reflectiveSphereModel = glm::translate(reflectiveSphereModel, glm::vec3(0.0, 50.0, 0.0));
+	reflectiveSphereModel = glm::scale(reflectiveSphereModel, glm::vec3(20.0));
+
+
 	//SKYBOX CONFIGURATION
 	// -----------------------------------------------------------
 	//Skybox Vertices
@@ -777,12 +790,6 @@ int main(int argc, char* argv[])
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textureDepthbuffer, 0);
-	// create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
-	//unsigned int rbo;
-	//glGenRenderbuffers(1, &rbo);
-	//glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-	//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height); // use a single renderbuffer object for both a depth AND stencil buffer.
-	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
 	// tell openGL that we want two textures as the output of this framebuffer
 	GLenum attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_DEPTH_ATTACHMENT};
 	glDrawBuffers(2, attachments);
@@ -858,8 +865,11 @@ int main(int argc, char* argv[])
 	shaderNL.setFloat("u_ambient", ambient);
 	shaderNL.setInteger("depthMap", 0);
   
-  skyBoxShader.use();
+	skyBoxShader.use();
 	skyBoxShader.setInteger("skybox", 0);
+
+	reflectiveObjectShader.use();
+	reflectiveObjectShader.setInteger("skybox", 0);
 
 	glm::vec3 light_pos; 
 	glm::mat4 light_model;
@@ -965,6 +975,9 @@ int main(int argc, char* argv[])
 		vehicle_canon_render.draw_on_bullet_object_vehicle_wheels_VFG(simpleDepthShader, vehicle, 4, glm::vec3(0.5));
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+
+		//RENDER SCENE TO MAIN FRAMEBUFFER
+		// 
 		// bind to framebuffer and draw scene as we normally would to color texture 
 		glViewport(0, 0, width, height);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -1002,7 +1015,7 @@ int main(int argc, char* argv[])
 		//Light drawing
 		light.draw_without_bullet_object(shader, light_model);
     
-    shaderNL.use(); 
+		shaderNL.use(); 
 		shaderNL.setFloat("far_plane", far_plane); 
 		shaderNL.setFloat("near_plane", near_plane); 
 		shaderNL.setVector3f("u_light_pos", light_pos); 
@@ -1014,6 +1027,13 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) { 
 			bodies_shaderNL_render[i].draw_on_bullet_object(shaderNL, bodies_shaderNL_bullet[i], glm::vec3(1.0)); 
 		}
+
+		reflectiveObjectShader.use();
+		reflectiveObjectShader.setFloat("far_plane", far_plane);
+		reflectiveObjectShader.setMatrix4("V", view);
+		reflectiveObjectShader.setMatrix4("P", perspective);
+		reflectiveObjectShader.setVector3f("cameraPos", camera.Position);
+		reflectiveSphere.draw_with_reflective_texture(reflectiveObjectShader, reflectiveSphereModel, cubemapTexture);
 		
 		//Draw skybox as last
 		glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -1028,7 +1048,10 @@ int main(int argc, char* argv[])
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glBindVertexArray(0);
 		glDepthFunc(GL_LESS); // set depth function back to default
-		
+
+
+		//PUT RENDERED SCENE TEXTURE ON SCREENBUFFER
+		// 
 		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
@@ -1151,81 +1174,6 @@ bool B_pressed = 0.0;
 void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader, btRaycastVehicle* vehicle) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
-	//if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		//camera.ProcessKeyboardMovement(LEFT, 0.1);
-	//if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		//camera.ProcessKeyboardMovement(RIGHT, 0.1);
-
-	//if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		//camera.ProcessKeyboardMovement(FORWARD, 0.1);
-	//if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		//camera.ProcessKeyboardMovement(BACKWARD, 0.1);
-
-	//if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-		//camera.ProcessKeyboardRotation(1, 0.0, 1);
-	//if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-		//camera.ProcessKeyboardRotation(-1, 0.0, 1);
-
-	//if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-		//camera.ProcessKeyboardRotation(0.0, 1.0, 1);
-	//if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-		//camera.ProcessKeyboardRotation(0.0, -1.0, 1);
-		
-	//Moving the player as sphere
-	// --------------------------------------------------------------
-	//if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-	//{
-		// Déplacement de la sphère dans la direction spécifiée par le vecteur cameraFront
-		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins
-		//btVector3 forceDirection(-camera.Front.x, 0.0f, -camera.Front.z);
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisé
-		//btVector3 force = forceMagnitude * forceDirection;
-
-		//player->applyCentralForce(force);
-	//}
-
-	//if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) 
-	//{
-		// Déplacement de la sphère dans la direction spécifiée par le vecteur cameraFront
-		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
-		//btVector3 forceDirection(camera.Front.x, 0.0f, camera.Front.z); 
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisé 
-		//btVector3 force = forceMagnitude * forceDirection; 
-
-		//player->applyCentralForce(force);
-	//}
-
-	//if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-	//{
-		// Utilisation directe du vecteur perpendiculaire dans le plan XY
-		//glm::vec3 perpendicularDirection = glm::cross(glm::vec3(camera.Front.x, 0.0f, camera.Front.z), glm::vec3(0.0f, 1.0f, 0.0f));
-		//perpendicularDirection = glm::normalize(perpendicularDirection);  
-
-		// Déplacement de la sphère dans la direction spécifiée
-		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
-		//btVector3 forceDirection(perpendicularDirection.x, 0.0f, perpendicularDirection.z); 
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisé 
-		//btVector3 force = forceMagnitude * forceDirection; 
-
-		//player->applyCentralForce(force);
-	//}
-
-	//if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) 
-	//{
-		// Utilisation directe du vecteur perpendiculaire dans le plan XY
-		//glm::vec3 perpendicularDirection = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(camera.Front.x, 0.0f, camera.Front.z));
-		//perpendicularDirection = glm::normalize(perpendicularDirection);
-
-		// Déplacement de la sphère dans la direction spécifiée
-		//float forceMagnitude = 10.0f; // Ajustez selon vos besoins 
-		//btVector3 forceDirection(perpendicularDirection.x, 0.0f, perpendicularDirection.z);
-		//forceDirection.normalize(); // Assurez-vous que le vecteur de direction est normalisé 
-		//btVector3 force = forceMagnitude * forceDirection;
-
-		//player->applyCentralForce(force);
-	//}
-	// --------------------------------------------------------------
 
 	//Moving the vehicle
 
