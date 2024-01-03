@@ -250,16 +250,16 @@ public:
 	void draw_on_bullet_object_vehicle_core(Shader shader, btRaycastVehicle* vehicle, glm::vec3 scale) {
 		btTransform t; 
 		btTransform chassisWorldTransform = vehicle->getChassisWorldTransform();
-		// Obtient la position du châssis dans le monde
+		// Taking the position of the chassis in the world
 		btVector3 chassisPosition = chassisWorldTransform.getOrigin();
-		// Obtient l'orientation du châssis dans le monde
+		// Taking the orientation of the chassis in the world
 		btQuaternion chassisOrientation = chassisWorldTransform.getRotation();
-		// Convertit la position et l'orientation en glm::vec3 et glm::quat
+		// Converting position and orientation in glm::vec3 et glm::quat
 		glm::vec3 position = glm::vec3(chassisPosition.getX(), chassisPosition.getY(), chassisPosition.getZ()); 
 		glm::quat orientation = glm::quat(chassisOrientation.getZ(), chassisOrientation.getY(), chassisOrientation.getX(), chassisOrientation.getW()); 
 		glm::mat4 model = glm::mat4(1.0f);
 		model = glm::translate(model, position);
-		model *= glm::mat4_cast(orientation);   // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model *= glm::mat4_cast(orientation);   // Using glm::mat4_cast to convert quaternion in matrices
 		model = glm::scale(model, scale); 
 		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
 		shader.setMatrix4("M", model);
@@ -282,7 +282,7 @@ public:
 		glm::quat orientation = glm::quat(wheelOrientation.getW(), wheelOrientation.getX(), wheelOrientation.getY(), wheelOrientation.getZ());
 		glm::mat4 model = glm::mat4(1.0f); 
 		model = glm::translate(model, position); 
-		model *= glm::mat4_cast(orientation);    // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model *= glm::mat4_cast(orientation); 
 		model = glm::scale(model, scale); 
 		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
 		shader.setMatrix4("M", model); 
@@ -341,16 +341,13 @@ public:
 	void draw_on_bullet_object_vehicle_core_VFG(ShaderVFG shader, btRaycastVehicle* vehicle, glm::vec3 scale) {
 		btTransform t;
 		btTransform chassisWorldTransform = vehicle->getChassisWorldTransform();
-		// Obtient la position du châssis dans le monde
 		btVector3 chassisPosition = chassisWorldTransform.getOrigin();
-		// Obtient l'orientation du châssis dans le monde
 		btQuaternion chassisOrientation = chassisWorldTransform.getRotation();
-		// Convertit la position et l'orientation en glm::vec3 et glm::quat
 		glm::vec3 position = glm::vec3(chassisPosition.getX(), chassisPosition.getY(), chassisPosition.getZ());
 		glm::quat orientation = glm::quat(chassisOrientation.getZ(), chassisOrientation.getY(), chassisOrientation.getX(), chassisOrientation.getW());
 		glm::mat4 model = glm::mat4(1.0f);
 		model = glm::translate(model, position);
-		model *= glm::mat4_cast(orientation);   // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model *= glm::mat4_cast(orientation); 
 		model = glm::scale(model, scale);
 		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
 		shader.setMatrix4("M", model);
@@ -373,7 +370,7 @@ public:
 		glm::quat orientation = glm::quat(wheelOrientation.getW(), wheelOrientation.getX(), wheelOrientation.getY(), wheelOrientation.getZ());
 		glm::mat4 model = glm::mat4(1.0f);
 		model = glm::translate(model, position);
-		model *= glm::mat4_cast(orientation);    // Utilise glm::mat4_cast pour convertir le quaternion en matrice
+		model *= glm::mat4_cast(orientation);
 		model = glm::scale(model, scale);
 		glm::mat4 inverse_model = glm::transpose(glm::inverse(model));
 		shader.setMatrix4("M", model);
