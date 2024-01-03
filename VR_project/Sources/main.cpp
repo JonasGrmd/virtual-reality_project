@@ -15,7 +15,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
+#include <chrono> 
+#include <thread> 
 
 #include "./../Headers/camera.h"
 #include "./../Headers/shader.h"
@@ -86,7 +87,9 @@ Camera camera(glm::vec3(0.0, 10.0, 50.0));
 bool blur_effect = 1.0;
 
 std::vector<btRigidBody*> bodies_bullet;
+std::vector<btRigidBody*> bodies_shaderNL_bullet;
 std::vector<Object> bodies_render;
+std::vector<Object> bodies_shaderNL_render;
 
 //For Bullet object
 float shooting_strength = 100.0;
@@ -112,6 +115,8 @@ glm::vec3 shooted_cylinder_materialColour = glm::vec3(0.973, 1.0, 0.071);
 
 char box_path[] = PATH_TO_OBJECTS "/Shooting_box.obj";
 glm::vec3 shooted_box_materialColour = glm::vec3(0.012, 0.902, 0.8);
+
+char box_texture_path[] = PATH_TO_OBJECTS "/box_texture.obj";
 
 char wheels_r06_h05_path[] = PATH_TO_OBJECTS "/wheels_r06_h05.obj";
 glm::vec3 wheels_materialColour = glm::vec3(0.6, 0.6, 0.6);
@@ -169,7 +174,7 @@ btRigidBody* addBox(float width, float height, float depth, float x, float y, fl
 	btMotionState* motion = new btDefaultMotionState(t);
 	btRigidBody::btRigidBodyConstructionInfo info(mass, motion, box, inertia);
 	btRigidBody* body = new btRigidBody(info);
-	body->setFriction(0.5); 
+	body->setFriction(0.8); 
 	world->addRigidBody(body);
 	return body;
 }
@@ -370,6 +375,9 @@ int main(int argc, char* argv[])
 	}
 #endif
 
+	char fileVert0[128] = PATH_TO_SHADERS "/vertexShaderNormalLight.txt";
+	char fileFrag0[128] = PATH_TO_SHADERS "/fragmentShaderNormalLight.txt";
+	Shader shaderNL(fileVert0, fileFrag0);
 	char fileVert[128] = PATH_TO_SHADERS "/vertexShader.txt";
 	char fileFrag[128] = PATH_TO_SHADERS "/fragmentShader.txt";
 	Shader shader(fileVert, fileFrag);
@@ -435,25 +443,112 @@ int main(int argc, char* argv[])
 	ground_model = glm::scale(ground_model, glm::vec3(1.0));
 	glm::mat4 inverse_ground_model = glm::transpose(glm::inverse(ground_model)); 
 	//---------------------------------------------------------------------
-
 	//Bullet and OpenGL sphere and cylinder
 	//---------------------------------------------------------------------
-	int sphere_number = 5;
-	for (int i = 0; i < 5; i++) {
-		bodies_bullet.push_back(addSphere(sphere_radius, 2.0 + i*5.0, i*5, 0.0, 1.0));
-		bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, 2.0+i * 0.5, i * 5, 0.0, 1.0));
+	int sphere_number = 6;
+	float pi = 3.14159265359;
+	for (int i = 0; i < sphere_number; i++) {
+		if (i < sphere_number / 2) {
+			bodies_shaderNL_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
+		}
+		else
+		{
+			bodies_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
+		}
+		//bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, 2.0+i * 0.5, i * 5, 0.0, 1.0));
 	}
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < sphere_number; i++) {
 		Object sphere_render(sphere_path, 1.0, 1.0, 32.0, 0.0, sphere_materialColour);
-		sphere_render.makeObject(shader, simpleDepthShader, false);
-		bodies_render.push_back(sphere_render);
+		if (i < sphere_number/2) {
+			sphere_render.makeObject(shaderNL, simpleDepthShader, false);
+			bodies_shaderNL_render.push_back(sphere_render); 
+		}
+		else
+		{
+			sphere_render.makeObject(shader, simpleDepthShader, false);
+			bodies_render.push_back(sphere_render);
+		}
+		
 
-		Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-		cylinder_render.makeObject(shader, simpleDepthShader, false); 
-		bodies_render.push_back(cylinder_render); 
-
+		//Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
+		//cylinder_render.makeObject(shader, simpleDepthShader, false); 
+		//bodies_render.push_back(cylinder_render); 
 	}
+	//Bullet and OpenGL columns of cubes
+	//---------------------------------------------------------------------------------------------
+	char cube_path[] = PATH_TO_OBJECTS "/cube.obj";
+	glm::vec3 cube_materialColour = glm::vec3(0.85, 0.0, 0.85); 
+	float cube_mass = 0.8;
+	float y_it = 0.0;
+
+	for (int i = 0;i < 10;i++) {
+		y_it += 2.01;
+		//column 1 (60 cubes)
+		bodies_bullet.push_back(addBox( 2*1.0, 2*1.0, 2*1.0, -25.0, 0.5+y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -29.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, -34.0, cube_mass));
+
+		//column 2 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 29.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, 34.0, cube_mass));
+
+		//column 3 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 25.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 29.0, 0.5 + y_it, -32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, 27.0, 0.5 + y_it, -34.0, cube_mass));
+
+		//column 4 (60 cubes)
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -25.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 30.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -29.0, 0.5 + y_it, 32.0, cube_mass));
+		bodies_bullet.push_back(addBox(2 * 1.0, 2 * 1.0, 2 * 1.0, -27.0, 0.5 + y_it, 34.0, cube_mass));
+	}
+	for (int i = 0;i < 240;i++) {
+		Object cube_render(cube_path, 1.0, 1.0, 32.0, 0.0, cube_materialColour);
+		cube_render.makeObject(shader, simpleDepthShader, false);
+		bodies_render.push_back(cube_render);
+	}
+	//---------------------------------------------------------------------------------------------
+
+	//GLuint texture; 
+	//glGenTextures(1, &texture); 
+	//glActiveTexture(GL_TEXTURE0); 
+	//glBindTexture(GL_TEXTURE_2D, texture); 
+
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+
+	//stbi_set_flip_vertically_on_load(true);
+	//int imWidth, imHeight, imNrChannels;
+	//char file[128] = "stone_tex.jpg";
+	//unsigned char* data = stbi_load(file, &imWidth, &imHeight, &imNrChannels, 0); 
+	//if (data) 
+	//{
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imWidth, imHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data); 
+		//glGenerateMipmap(GL_TEXTURE_2D); 
+	//}
+	//else { 
+		//std::cout << "Failed to Load texture" << std::endl; 
+		//const char* reason = stbi_failure_reason(); 
+		//std::cout << reason << std::endl; 
+	//}
+
+	//stbi_image_free(data); 
 	//----------------------------------------------------------------------
 	
 	//Bullet and OpenGl player
@@ -759,10 +854,14 @@ int main(int argc, char* argv[])
 	shader.setFloat("u_ambient", ambient);
 	shader.setInteger("depthMap", 0);
 
-	skyBoxShader.use();
+	shaderNL.use();
+	shaderNL.setFloat("u_ambient", ambient);
+	shaderNL.setInteger("depthMap", 0);
+  
+  skyBoxShader.use();
 	skyBoxShader.setInteger("skybox", 0);
 
-	glm::vec3 light_pos;
+	glm::vec3 light_pos; 
 	glm::mat4 light_model;
   
   double lastShootTime = 0.0;
@@ -851,6 +950,9 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_bullet.size(); i++) {
 			bodies_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_bullet[i], glm::vec3(1.0));
 		}
+		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) {
+			bodies_shaderNL_render[i].draw_on_bullet_object_VFG(simpleDepthShader, bodies_shaderNL_bullet[i], glm::vec3(1.0));
+		}
 		//Ground drawing
 		ground.draw_without_bullet_object_VFG(simpleDepthShader, ground_model); 
 
@@ -899,6 +1001,19 @@ int main(int argc, char* argv[])
 		ground.draw_without_bullet_object(shader, ground_model);
 		//Light drawing
 		light.draw_without_bullet_object(shader, light_model);
+    
+    shaderNL.use(); 
+		shaderNL.setFloat("far_plane", far_plane); 
+		shaderNL.setFloat("near_plane", near_plane); 
+		shaderNL.setVector3f("u_light_pos", light_pos); 
+		shaderNL.setVector3f("lightColour", lightColour); 
+		//Camera info sent to shader
+		shaderNL.setMatrix4("V", view); 
+		shaderNL.setMatrix4("P", perspective); 
+		shaderNL.setVector3f("u_view_pos", camera.Position); 
+		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) { 
+			bodies_shaderNL_render[i].draw_on_bullet_object(shaderNL, bodies_shaderNL_bullet[i], glm::vec3(1.0)); 
+		}
 		
 		//Draw skybox as last
 		glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -947,6 +1062,13 @@ int main(int argc, char* argv[])
 		btCollisionShape* shape = obj->getCollisionShape(); 
 		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
 		delete shape; 
+	}
+	for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) {
+		btCollisionObject* obj = bodies_shaderNL_bullet[i];
+		world->removeCollisionObject(obj);
+		btCollisionShape* shape = obj->getCollisionShape();
+		delete obj;  // Ne supprime que le pointeur, pas l'objet réel
+		delete shape;
 	}
 
 	// Supprimer le véhicule Bullet
@@ -1020,7 +1142,7 @@ float randomFloat(int a, int b)
 const float accelerationForce = 10000.0f;  // Force d'accélération
 float brakeForce = -10000.0f;         // Force de freinage
 const float steeringIncrement = 0.05f; 
-const float steeringIncrement2 = 0.02f;// Incrément de rotation
+const float steeringIncrement2 = 0.03f;// Incrément de rotation
 const float decelerationForce = -100.0f;  // Force de décélération
 float maxSteeringAngle = 1.6;
 bool B_pressed = 0.0;
