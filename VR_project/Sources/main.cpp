@@ -189,55 +189,53 @@ void init() {
 	world->setGravity(btVector3(0.0, -9.81, 0.0)); 
 
 };
-//Fonctions nécéssaires pour créer un btTriangleMesh à partir d'un file .obj
+//Functions needed to create a btTriangleMesh from .obj file with the help of ChatGPT
 //------------------------------------------------------------------------------------------------------------------------------------
 struct MeshData {
 	std::vector<btVector3> vertices;
-	std::vector<int> indices;  // Les indices des sommets pour chaque triangle
+	std::vector<int> indices;  // indices of vertices
 };
 
-// Fonction pour remplir un btTriangleMesh à partir des données extraites
+// Function that take the data extracted and fill it in btTriangleMesh
 btTriangleMesh* fillTriangleMesh(const MeshData& meshData) {
 	btTriangleMesh* triangleMesh = new btTriangleMesh();
 
-	// Ajouter chaque triangle au mesh
+	// Adding each triangle to the mesh
 	for (size_t i = 0; i < meshData.indices.size(); i += 3) {
-		// Récupérer les indices des sommets du triangle
+		// Taking the indices of vertices
 		int index0 = meshData.indices[i];
 		int index1 = meshData.indices[i + 1];
 		int index2 = meshData.indices[i + 2];
 
-		// Vérifier que les indices sont valides
+		// Checking if indices are valid
 		if (index0 < 0 || index0 >= static_cast<int>(meshData.vertices.size()) ||
 			index1 < 0 || index1 >= static_cast<int>(meshData.vertices.size()) ||
 			index2 < 0 || index2 >= static_cast<int>(meshData.vertices.size())) {
 			std::cout << "Bugged index: " << index0 << std::endl;
 			std::cout << "Bugged index: " << index1 << std::endl;
 			std::cout << "Bugged index: " << index2 << std::endl;
-			// Gestion d'une erreur d'indice non valide
 			delete triangleMesh;
 			return nullptr;
 		}
 
-		// Récupérer les positions des sommets du triangle
+		// Taking the vertices of traingle
 		btVector3 vertex0 = meshData.vertices[index0];
 		btVector3 vertex1 = meshData.vertices[index1];
 		btVector3 vertex2 = meshData.vertices[index2];
 
-		// Ajouter le triangle au mesh
+		// Adding the triangle to the mesh
 		triangleMesh->addTriangle(vertex0, vertex1, vertex2);
 	}
 
 	return triangleMesh;
 }
 
-// Fonction pour charger un modèle à partir d'un fichier OBJ sans utiliser de bibliothèque externe
+// Function that load the mesh from .obj file
 MeshData loadMeshFromObj(const char* filePath) {
 	MeshData meshData;
 
 	std::ifstream file(filePath);
 	if (!file.is_open()) {
-		// Gestion de l'erreur de chargement du fichier
 		return meshData;
 	}
 
@@ -248,7 +246,7 @@ MeshData loadMeshFromObj(const char* filePath) {
 		iss >> token;
 
 		if (token == "v") {
-			// Lire les coordonnées du sommet
+			// reading the vertices coordinates of each triangle
 			btVector3 vertex;
 			iss >> vertex[0] >> vertex[1] >> vertex[2];
 			meshData.vertices.push_back(vertex);
@@ -287,7 +285,7 @@ MeshData loadMeshFromObj(const char* filePath) {
 			n = f3.substr(0, f3.find("/"));
 
 			meshData.indices.push_back(std::stoi(p) - 1);
-			// Sortie de débogage
+			// Debugging exit
 			std::cout << "Vertex Index: " << std::stoi(p) - 1 << std::endl;
 		};
 	}
@@ -421,22 +419,22 @@ int main(int argc, char* argv[])
 	//Bullet and OpenGL ground
 	//---------------------------------------------------------------------
 	char ground_path[] = PATH_TO_OBJECTS "/Ground2.obj";
-	//On charge le mesh
+	//Loading the mesh
 	MeshData meshData = loadMeshFromObj(ground_path);
-	// Créer une forme de collision avec Bullet à partir du mesh
+	// Creating a bullet collision shape from the loaded mesh
 	btBvhTriangleMeshShape* collisionShapeGround = new btBvhTriangleMeshShape(fillTriangleMesh(meshData), true, true);
-	//btStaticPlaneShape* collisionShapeGround = new btStaticPlaneShape(btVector3(0.0, 1.0, 0.0), 0.0);
-	// Position initiale du sol
+	// Position of the ground
 	btTransform t; 
 	t.setIdentity(); 
 	t.setOrigin(btVector3(0.0, 0.0, 0.0)); 
 	btMotionState* motionStateGround = new btDefaultMotionState(t);
-	// Construction du RigidBody
+	// Construction of the RigidBody
 	btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(0.0, motionStateGround, collisionShapeGround);
 	btRigidBody* rigidBodyGround = new btRigidBody(rigidBodyCI); 
 	rigidBodyGround->setFriction(0.5);
 	world->addRigidBody(rigidBodyGround);
 
+	// OpenGL object for the ground 
 	glm::vec3 ground_materialColour = glm::vec3(0.922, 0.765, 0.349);
 	Object ground(ground_path, 1.0, 0.0, 32.0, 0.0, ground_materialColour);
 	ground.makeObject(shader, simpleDepthShader, false);
@@ -459,7 +457,6 @@ int main(int argc, char* argv[])
 		{
 			bodies_bullet.push_back(addSphere(sphere_radius, 8 * cos((i + 1) * pi / 3), 5.0, 8 * sin((i + 1) * pi / 3), 1.0));
 		}
-		//bodies_bullet.push_back(addCylinder(cylinder_diameter, cylinder_height, 2.0+i * 0.5, i * 5, 0.0, 1.0));
 	}
 
 	for (int i = 0; i < sphere_number; i++) {
@@ -473,14 +470,10 @@ int main(int argc, char* argv[])
 			sphere_render.makeObject(shader, simpleDepthShader, false);
 			bodies_render.push_back(sphere_render);
 		}
-		
-
-		//Object cylinder_render(cylinder_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-		//cylinder_render.makeObject(shader, simpleDepthShader, false); 
-		//bodies_render.push_back(cylinder_render); 
 	}
+	//------------------------------------------------------------------------
 	//Bullet and OpenGL columns of cubes
-	//---------------------------------------------------------------------------------------------
+	//--------------------------------------------------------------------------------------------------
 	char cube_path[] = PATH_TO_OBJECTS "/cube.obj";
 	glm::vec3 cube_materialColour = glm::vec3(0.85, 0.0, 0.85); 
 	float cube_mass = 0.8;
@@ -526,45 +519,17 @@ int main(int argc, char* argv[])
 		bodies_render.push_back(cube_render);
 	}
 	//---------------------------------------------------------------------------------------------
-
-	//GLuint texture; 
-	//glGenTextures(1, &texture); 
-	//glActiveTexture(GL_TEXTURE0); 
-	//glBindTexture(GL_TEXTURE_2D, texture); 
-
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT); 
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT); 
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
-
-	//stbi_set_flip_vertically_on_load(true);
-	//int imWidth, imHeight, imNrChannels;
-	//char file[128] = "stone_tex.jpg";
-	//unsigned char* data = stbi_load(file, &imWidth, &imHeight, &imNrChannels, 0); 
-	//if (data) 
-	//{
-		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imWidth, imHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data); 
-		//glGenerateMipmap(GL_TEXTURE_2D); 
-	//}
-	//else { 
-		//std::cout << "Failed to Load texture" << std::endl; 
-		//const char* reason = stbi_failure_reason(); 
-		//std::cout << reason << std::endl; 
-	//}
-
-	//stbi_image_free(data); 
-	//----------------------------------------------------------------------
 	
-	//Bullet and OpenGl player
+	//Bullet and OpenGl car (due to a lack of documentation about Bullet Physics the following bullet creation has been made with the help of ChatGPT)
 	//----------------------------------------------------------------------
-	// Création du corps principal (boîte)
+	//Creating the main core of the car (box)
 	btCollisionShape* carShape = new btBoxShape(btVector3(box_width, 1.2, box_depth)); 
 
-	//Centre de mass
+	//Center of mass
 	btVector3 localInertia(0, 0, 0); 
 	carShape->calculateLocalInertia(carMass, localInertia);
 
-	// Position initiale du véhicule dans le monde
+	// Initial position of the car in the world
 	btVector3 initialPosition(0.0, 20.0, 0.0);
 	btTransform transf;
 	transf.setIdentity();
@@ -574,12 +539,12 @@ int main(int argc, char* argv[])
 	btRigidBody::btRigidBodyConstructionInfo carRigidBodyCI(carMass, carMotionState, carShape, localInertia);  
 	btRigidBody* carRigidBody = new btRigidBody(carRigidBodyCI); 
 
-	//Friction du corps principal
+	//Friction of the main core
 	carRigidBody->setFriction(0.7);
 	carRigidBody->setRollingFriction(0.7);
 	carRigidBody->setAngularFactor(btVector3(1, 1, 1)); 
 
-	// Création du véhicule
+	// Adding tuning parameters
 	btRaycastVehicle::btVehicleTuning tuning; 
 	tuning.m_suspensionStiffness = 20.0; 
 	tuning.m_suspensionDamping = 2.3; 
@@ -587,9 +552,9 @@ int main(int argc, char* argv[])
 	btVehicleRaycaster* vehicleRayCaster = new btDefaultVehicleRaycaster(world); 
 	btRaycastVehicle* vehicle = new btRaycastVehicle(tuning, carRigidBody, vehicleRayCaster); 
 
-	//Amortissement des roues
-	btScalar linearDamping(0.2); // Valeurs à ajuster  
-	btScalar angularDamping(0.1); // Valeurs à ajuster  
+	//Damping of wheels
+	btScalar linearDamping(0.2); 
+	btScalar angularDamping(0.1);  
 
 	vehicle->getRigidBody()->setDamping(linearDamping, angularDamping); 
 
@@ -597,26 +562,26 @@ int main(int argc, char* argv[])
 
 	world->addRigidBody(carRigidBody); 
 
-	// Position des roues par rapport au centre du véhicule
+	// Positions of wheels relative to center of the car
 	btVector3 connectionPointCS0_0(-1.5, -1.0, 1.5); //avant gauche
 	btVector3 connectionPointCS0_1(1.5, -1.0, 1.5); //avant droit
 	btVector3 connectionPointCS0_2(-1.5, -1.0, -1.5); //arrière gauche
 	btVector3 connectionPointCS0_3(1.5, -1.0, -1.5); //arrière droit
 
-	//Orientation des roues
+	//Orientation of wheels
 	btVector3 wheelDirectionCS0(0, -1, 0); 
 	btVector3 wheelAxleCS(-1, 0, 0); 
 
-	// Ajout des roues
-	vehicle->addWheel(connectionPointCS0_0, wheelDirectionCS0, wheelAxleCS, 0.6, 0.5, tuning, true); //cylindre de rayon 0.6 et hauteur 0.5
+	// Adding the wheels to the vehicle
+	vehicle->addWheel(connectionPointCS0_0, wheelDirectionCS0, wheelAxleCS, 0.6, 0.5, tuning, true); //cylinder of radius 0.6 and height 0.5
 	vehicle->addWheel(connectionPointCS0_1, wheelDirectionCS0, wheelAxleCS, 0.6, 0.5, tuning, true); 
 	vehicle->addWheel(connectionPointCS0_2, wheelDirectionCS0, wheelAxleCS, 0.6, 0.5, tuning, true);
 	vehicle->addWheel(connectionPointCS0_3, wheelDirectionCS0, wheelAxleCS, 0.6, 0.5, tuning, true);
 
-	// Ajout du canon sous forme de roue
+	// Adding a canon under the form of a wheel
 	vehicle->addWheel(btVector3(0.0,1.2 , 0.0), wheelDirectionCS0, wheelAxleCS,0.3,0.3,tuning,true); 
 
-	//Friction des roues
+	//Friction of the wheels
 	for (int i = 0;i < 4;i++) {
 		vehicle->getWheelInfo(i).m_frictionSlip = 10.0;
 		vehicle->getWheelInfo(i).m_wheelsDampingRelaxation = 0.8; 
@@ -625,7 +590,7 @@ int main(int argc, char* argv[])
 
 	world->addVehicle(vehicle); 
 
-	//Objet OpenGL
+	//OpenGL object of the car
 	Object vehicle_core_render(box_path, 2.0, 1.5, 32.0, 0.0, player_materialColour);  
 	vehicle_core_render.makeObject(shader, simpleDepthShader, false);
 
@@ -875,7 +840,7 @@ int main(int argc, char* argv[])
 	glm::mat4 light_model;
   
   double lastShootTime = 0.0;
-	const double shootDelay = 0.5; // délai entre chaque tir
+	const double shootDelay = 0.5; // delay between the shootings
 
 	while (!glfwWindowShouldClose(window)) {
 		//Bullet simulation
@@ -883,37 +848,37 @@ int main(int argc, char* argv[])
 		world->stepSimulation(1 / 60.0); //Stepping simulation for one frame 
 		processInput(window,shader, simpleDepthShader, vehicle);
 
-		//Tir de sphere devant le véhicule
+		// Shooting of spheres in front of the canon
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && (glfwGetTime() - lastShootTime) > shootDelay) {
 
 			lastShootTime = glfwGetTime();
-			// Positions des roues avant
+			// Front wheels positions
 			btVector3 wheelPos0 = vehicle->getWheelInfo(0).m_worldTransform.getOrigin();
 			btVector3 wheelPos1 = vehicle->getWheelInfo(1).m_worldTransform.getOrigin();
 
-			// Position moyenne des deux roues avant
+			// Average position of front wheels
 			btVector3 avgWheelPos = (wheelPos0 + wheelPos1) * 0.5;
 
-			// Position initiale de la sphère à un mètre devant les roues avant
+			// Initial position of the sphere in front of the canon
 			btVector3 baseNormalLocal = vehicle->getWheelInfo(4).m_worldTransform.getBasis() * btVector3(0, 1, 0);
 			btVector3 wheelPositionWorld = vehicle->getWheelInfo(4).m_worldTransform * vehicle->getWheelInfo(4).m_chassisConnectionPointCS; 
 			btVector3 initialPosition = btVector3(wheelPositionWorld.getX() + baseNormalLocal.getX(), wheelPositionWorld.getY(), wheelPositionWorld.getZ()+ baseNormalLocal.getZ());
 
-			// Création de la sphère dans le monde Bullet
+			// Creating the bullet shooting spheres object
 			btRigidBody* shootingSphere = addSphere(sphere_radius, initialPosition.getX(), initialPosition.getY(), initialPosition.getZ(), 1.0);
 			bodies_bullet.push_back(shootingSphere);
 
-			// Appliquer une vélocité à la sphère dans la direction du canon
+			// Applying velocity a the shooted sphere in the direction of the canon
 			btVector3 baseNormalLocal_norm = baseNormalLocal.normalize();
 			shootingSphere->setLinearVelocity(baseNormalLocal_norm * shooting_strength);
 
-			// Création de l'objet OpenGL
+			// OpenGl object for shooted sphere
 			Object sphereRender(sphere_path, 1.0, 0.8, 32.0, 0.0, shooted_sphere_materialColour);
 			sphereRender.makeObject(shader, simpleDepthShader, false);
 			bodies_render.push_back(sphereRender);
 		};
 
-		//Camera on player
+		//Camera on vehicle
 		glfwGetCursorPos(window, &xposIn, &yposIn);  
 		view = camera.GetViewMatrixOnPlayer(xposIn, yposIn, vehicle_core_render.getObjectPosition(carRigidBody),20.0);
 
@@ -1094,28 +1059,29 @@ int main(int argc, char* argv[])
 		delete shape;
 	}
 
-	// Supprimer le véhicule Bullet
+	// We free the allocated memory
+	// Deleting Bullet vehicle
 	delete vehicleRayCaster; 
 	delete vehicle; 
 
-	// Supprimer les corps rigides
+	// Deleting Bullet rigid bodies
 	delete rigidBodyGround; 
 	delete carRigidBody;
 
-	// Supprimer les objets de motion et de collision
+	// Deleting Bullet motion objects and collision shapes
 	delete collisionShapeGround; 
 	delete motionStateGround; 
 	delete carMotionState; 
 	delete carShape;
 
-	// Supprimer les composants Bullet Physics restants
+	// Deleting Bullet last components
 	delete world; 
 	delete broadphase; 
 	delete solver; 
 	delete collisionConfig; 
 	delete dispatcher; 
 
-	// Nettoyer les ressources OpenGL
+	// Cleaning OpenGL ressources
 	glDeleteVertexArrays(1, &quadVAO); 
 	glDeleteBuffers(1, &quadVBO); 
 	glDeleteFramebuffers(1, &framebuffer); 
@@ -1123,7 +1089,7 @@ int main(int argc, char* argv[])
 	glDeleteVertexArrays(1, &skyboxVAO);
 	glDeleteBuffers(1, &skyboxVBO);
 
-	// Fermer la fenêtre GLFW
+	// Closing GLFW window
 	glfwDestroyWindow(window); 
 	glfwTerminate(); 
 
@@ -1160,6 +1126,7 @@ float randomFloat(int a, int b)
 		return (float)randomInt(a, b) + randomFloat();
 	}
 
+// Tout ce qui concerne le mouvement du véhicule dans la suite du code a été fait à l'aide de ChatGPT.
 // Paramètres de mouvement du véhicule :
 
 const float accelerationForce = 10000.0f;  // Force d'accélération
@@ -1177,7 +1144,7 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 
 	//Moving the vehicle
 
-	// Accélération
+	// Acceleration
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		vehicle->applyEngineForce(accelerationForce, 2);
 		vehicle->applyEngineForce(accelerationForce, 3);
@@ -1192,16 +1159,16 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
 		bodies_bullet.push_back(addSphere(sphere_radius, randomFloat(1, 3), 20.0, randomFloat(1, 3), 1.0));
 		Object sphere_render(sphere_path, 1.0, 0.8, 32.0, 0.0, sphere_materialColour);
-		sphere_render.makeObject(shader, simpleDepthShader, false);
+		sphere_render.makeObject(shader, simpleDepthShader, false); 
 		bodies_render.push_back(sphere_render);
 	}
 	
-	// Frein
+	// Brake
 	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
 		vehicle->applyEngineForce(brakeForce, 2); 
 		vehicle->applyEngineForce(brakeForce, 3); 
 	}
-	// Rotation vers la gauche
+	// Left rotation
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
 		float currentSteering = vehicle->getSteeringValue(0); 
 		float newSteering = currentSteering + steeringIncrement;
@@ -1211,7 +1178,7 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		vehicle->setSteeringValue(newSteering, 2);
 		vehicle->setSteeringValue(newSteering, 3);
 	}
-	// Rotation vers la droite
+	// Right rotation
 	else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		float currentSteering = vehicle->getSteeringValue(0);
 		float newSteering = currentSteering - steeringIncrement;
@@ -1221,13 +1188,14 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		vehicle->setSteeringValue(newSteering, 2); 
 		vehicle->setSteeringValue(newSteering, 3); 
 	}
+	// Canon left rotation
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
 		float currentSteering = vehicle->getSteeringValue(4);
 		float newSteering = currentSteering + steeringIncrement2;
 
 		vehicle->setSteeringValue(newSteering, 4);
 	}
-	// Rotation vers la droite
+	// Canon right rotation
 	else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
 		float currentSteering = vehicle->getSteeringValue(4);
 		float newSteering = currentSteering - steeringIncrement2;
@@ -1235,34 +1203,6 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 
 		vehicle->setSteeringValue(newSteering, 4);
 	}
-	
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-
-		//Bullet Object
-		btRigidBody* shooting_cylinder = addCylinder(cylinder_diameter, cylinder_height, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
-		bodies_bullet.push_back(shooting_cylinder);
-		glm::vec3 shooting_direction = glm::vec3(-camera.Front.x * shooting_strength, 0.0, -camera.Front.z * shooting_strength);
-		shooting_cylinder->setLinearVelocity(btVector3(shooting_direction.x-5.0, shooting_direction.y, shooting_direction.z));
-
-		//OpenGL object
-		Object cylinder_render(cylinder_path, 2.0, 1.5, 32.0, 0.0, shooted_cylinder_materialColour);
-		cylinder_render.makeObject(shader, simpleDepthShader, false);
-		bodies_render.push_back(cylinder_render);
-	};
-
-	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
-
-		//Bullet Object
-		btRigidBody* shooting_box = addBox(box_width, box_height, box_depth, camera.Position.x + camera.Front.x * 5.0, camera.Position.y + camera.Front.y * 5.0, camera.Position.z + camera.Front.z * 5.0, 1.0);
-		bodies_bullet.push_back(shooting_box);
-		glm::vec3 shooting_direction = glm::vec3(-camera.Front.x * shooting_strength, 0.0, -camera.Front.z * shooting_strength);
-		shooting_box->setLinearVelocity(btVector3(shooting_direction.x, shooting_direction.y, shooting_direction.z));
-
-		//OpenGL object
-		Object box_render(box_path, 2.0, 1.5, 32.0, 0.0, shooted_box_materialColour);
-		box_render.makeObject(shader, simpleDepthShader, false);
-		bodies_render.push_back(box_render);
-	};
 
 	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && B_pressed != 1.0) {
 		blur_effect = not blur_effect;
