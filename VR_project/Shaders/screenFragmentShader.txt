@@ -8,6 +8,7 @@ uniform sampler2D normalTexture;
 uniform sampler2D depthTexture;
 
 uniform vec3 backgroundColor;
+uniform float blur;
 
 const float offset_x = 1.0 / 1920.0;  
 const float offset_y = 1.0 / 1080.0;
@@ -66,7 +67,7 @@ void main()
     float ColorGrad = sqrt(pow(length(ColorGradX), 2.0)+pow(length(ColorGradY), 2.0));
     float ClarityGrad = sqrt(pow(ClarityGradX,2.0) + pow(ClarityGradY,2.0));
 
-    float EdgeDetectionGrad = NormalGrad;
+    float EdgeDetectionGrad = max(NormalGrad, ColorGrad);
 
     vec3 initialColor = vec3(texture(colorTexture, TexCoords.st));
 
@@ -75,7 +76,7 @@ void main()
 
     float depth = texture(depthTexture, TexCoords.st).r;
 
-    col = mix(col, backgroundColor, depth);
+    if (blur == 1.0) col = mix(col, backgroundColor, depth);
 
     FragColor = vec4(col,1.0);
 }  
