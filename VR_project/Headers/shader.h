@@ -64,6 +64,9 @@ public:
     void setInteger(const GLchar *name, GLint value) {
         glUniform1i(glGetUniformLocation(ID, name), value);
     }
+    void setBool(const GLchar* name, GLboolean value) {
+        glUniform1f(glGetUniformLocation(ID, name), value);
+    }
     void setFloat(const GLchar* name, GLfloat value) {
         glUniform1f(glGetUniformLocation(ID, name), value);
     }

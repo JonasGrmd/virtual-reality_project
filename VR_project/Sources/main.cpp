@@ -84,6 +84,8 @@ void APIENTRY glDebugOutput(GLenum source,
 
 Camera camera(glm::vec3(0.0, 10.0, 50.0));
 
+bool blur_effect = 1.0;
+
 std::vector<btRigidBody*> bodies_bullet;
 std::vector<btRigidBody*> bodies_shaderNL_bullet;
 std::vector<Object> bodies_render;
@@ -293,6 +295,39 @@ MeshData loadMeshFromObj(const char* filePath) {
 }
 //-------------------------------------------------------------------------------------------------------------------------------------------
 
+//Loading Cubemap Function (copied form LearnOpenGL)
+unsigned int loadCubemap(std::vector<std::string> faces)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrChannels;
+	for (unsigned int i = 0; i < faces.size(); i++)
+	{
+		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		if (data)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+			);
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
+}
+
 int main(int argc, char* argv[])
 {
 	//Boilerplate
@@ -356,6 +391,9 @@ int main(int argc, char* argv[])
 	char fileParticleVert[128] = PATH_TO_SHADERS "/particleVertexShader.txt";
 	char fileParticleFrag[128] = PATH_TO_SHADERS "/particleFragmentShader.txt";
 	Shader particleShader(fileParticleVert, fileParticleFrag);
+	char fileCubeMapVert[128] = PATH_TO_SHADERS "/cubeMapVertexShader.txt";
+	char fileCubeMapFrag[128] = PATH_TO_SHADERS "/cubeMapFragmentShader.txt";
+	Shader skyBoxShader(fileCubeMapVert, fileCubeMapFrag);
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -599,14 +637,90 @@ int main(int argc, char* argv[])
 	Object vehicle_canon_render(canon_path, 2.0, 1.5, 32.0, 0.0, canon_materialColour);
 	vehicle_canon_render.makeObject(shader, simpleDepthShader, false); 
 
-	//----------------------------------------------------------
+	//-----------------------------------------------------------
 
 	//OpenGL Light object
-
+	//-----------------------------------------------------------
 	//Path and properties definition
 	glm::vec3 lightColour = glm::vec3(1.0, 1.0, 1.0);
 	Object light(sphere_path, 1.0, 0.8, 32.0, 1.0, lightColour);
 	light.makeObject(shader, simpleDepthShader, false);
+	//------------------------------------------------------------
+
+	//SKYBOX CONFIGURATION
+	// -----------------------------------------------------------
+	//Skybox Vertices
+	float skyboxVertices[] = {
+		// positions          
+		-1.0f,  1.0f, -1.0f,
+		-1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		-1.0f,  1.0f, -1.0f,
+		 1.0f,  1.0f, -1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		 1.0f, -1.0f,  1.0f
+	};
+	//Skybox VAO Generation
+	unsigned int skyboxVAO, skyboxVBO;
+	glGenVertexArrays(1, &skyboxVAO);
+	glGenBuffers(1, &skyboxVBO);
+	glBindVertexArray(skyboxVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	//Skybox and cubemap loading
+	std::vector<std::string> faces
+	{
+		PATH_TO_TEXTURE "/skybox/right.jpg",
+		PATH_TO_TEXTURE "/skybox/left.jpg",
+		PATH_TO_TEXTURE "/skybox/top.jpg",
+		PATH_TO_TEXTURE "/skybox/bottom.jpg",
+		PATH_TO_TEXTURE "/skybox/front.jpg",
+		PATH_TO_TEXTURE "/skybox/back.jpg",
+		//PATH_TO_TEXTURE "/skybox/px.jpg",
+		//PATH_TO_TEXTURE "/skybox/nx.jpg",
+		//PATH_TO_TEXTURE "/skybox/py.jpg",
+		//PATH_TO_TEXTURE "/skybox/ny.jpg",
+		//PATH_TO_TEXTURE "/skybox/pz.jpg",
+		//PATH_TO_TEXTURE "/skybox/nz.jpg",
+	};
+	unsigned int cubemapTexture = loadCubemap(faces);
+	//------------------------------------------------------------------
 
 
 	//Creation of a screen quad
@@ -743,6 +857,9 @@ int main(int argc, char* argv[])
 	shaderNL.use();
 	shaderNL.setFloat("u_ambient", ambient);
 	shaderNL.setInteger("depthMap", 0);
+  
+  skyBoxShader.use();
+	skyBoxShader.setInteger("skybox", 0);
 
 	glm::vec3 light_pos; 
 	glm::mat4 light_model;
@@ -884,9 +1001,8 @@ int main(int argc, char* argv[])
 		ground.draw_without_bullet_object(shader, ground_model);
 		//Light drawing
 		light.draw_without_bullet_object(shader, light_model);
-
-		//
-		shaderNL.use(); 
+    
+    shaderNL.use(); 
 		shaderNL.setFloat("far_plane", far_plane); 
 		shaderNL.setFloat("near_plane", near_plane); 
 		shaderNL.setVector3f("u_light_pos", light_pos); 
@@ -898,13 +1014,20 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < bodies_shaderNL_bullet.size(); i++) { 
 			bodies_shaderNL_render[i].draw_on_bullet_object(shaderNL, bodies_shaderNL_bullet[i], glm::vec3(1.0)); 
 		}
-		//Particles system
-		//float yMax = 100.0;
-		//float particleFarPlane = 100.0;
-		//float gravity = 10.0;
-		//glm::vec3 wind = glm::vec3(2.0, 0.0, 2.0);
-		//particleGen.Update(1.0/60, yMax, 100.0, 10.0, wind, 10.0, camera);
-		//particleGen.Draw(camera);
+		
+		//Draw skybox as last
+		glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+		skyBoxShader.use();
+		glm::mat4 view_for_cubemap = glm::mat4(glm::mat3(view));
+		skyBoxShader.setMatrix4("V", view_for_cubemap);
+		skyBoxShader.setMatrix4("P", perspective);
+		// skybox cube
+		glBindVertexArray(skyboxVAO);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glBindVertexArray(0);
+		glDepthFunc(GL_LESS); // set depth function back to default
 		
 		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -914,6 +1037,8 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		screenShader.use();
+		screenShader.setBool("blur", blur_effect);
+
 		glBindVertexArray(quadVAO);
 
 		glActiveTexture(GL_TEXTURE0);
@@ -972,6 +1097,8 @@ int main(int argc, char* argv[])
 	glDeleteBuffers(1, &quadVBO); 
 	glDeleteFramebuffers(1, &framebuffer); 
 	glDeleteFramebuffers(1, &depthMapFBO); 
+	glDeleteVertexArrays(1, &skyboxVAO);
+	glDeleteBuffers(1, &skyboxVBO);
 
 	// Fermer la fenêtre GLFW
 	glfwDestroyWindow(window); 
@@ -1018,6 +1145,7 @@ const float steeringIncrement = 0.05f;
 const float steeringIncrement2 = 0.03f;// Incrément de rotation
 const float decelerationForce = -100.0f;  // Force de décélération
 float maxSteeringAngle = 1.6;
+bool B_pressed = 0.0;
 
 
 void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader, btRaycastVehicle* vehicle) {
@@ -1188,7 +1316,15 @@ void processInput(GLFWwindow* window, Shader shader, ShaderVFG simpleDepthShader
 		bodies_render.push_back(box_render);
 	};
 
+	if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && B_pressed != 1.0) {
+		blur_effect = not blur_effect;
+		std::cout << blur_effect << endl;
+		B_pressed = 1.0;
+	};
 
+	if (glfwGetKey(window, GLFW_KEY_B) != GLFW_PRESS && B_pressed == 1.0) {
+		B_pressed = 0.0;
+	};
 };
 
 
