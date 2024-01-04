@@ -521,7 +521,7 @@ int main(int argc, char* argv[])
 	//---------------------------------------------------------------------------------------------
 	
 	//Bullet and OpenGl car (due to a lack of documentation about Bullet Physics the following bullet creation has been made with the help of ChatGPT)
-	//----------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
 	//Creating the main core of the car (box)
 	btCollisionShape* carShape = new btBoxShape(btVector3(box_width, 1.2, box_depth)); 
 
@@ -893,7 +893,7 @@ int main(int argc, char* argv[])
 		// 0. create depth cubemap transformation matrices
 		// -----------------------------------------------
 		float near_plane = 1.0f;
-		float far_plane = 100.0f;
+		float far_plane = 500.0f;
 
 		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
 		std::vector<glm::mat4> shadowTransforms;

@@ -223,7 +223,6 @@ public:
 	void draw_on_bullet_object(Shader shader, btRigidBody* body, glm::vec3 scale) {
 		btTransform t;
 		body->getMotionState()->getWorldTransform(t); //Get the position of the bullet object
-		//btVector3 body_translation = t.getOrigin();	  //and put it the sphere_translation vector
 		float mat[16];
 		t.getOpenGLMatrix(mat);
 		//Changing the model matrix following the sphere_translation

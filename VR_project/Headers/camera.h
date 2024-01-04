@@ -111,7 +111,7 @@ public:
     }
 
 
-    glm::mat4 GetProjectionMatrix(float fov=45.0, float ratio=16.0/9.0, float near=0.01, float far=100.0)
+    glm::mat4 GetProjectionMatrix(float fov=45.0, float ratio=16.0/9.0, float near=0.01, float far=500.0)
     {
         return glm::perspective(fov, ratio, near, far);
     }
