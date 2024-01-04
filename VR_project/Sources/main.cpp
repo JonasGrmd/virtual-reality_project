@@ -347,7 +347,7 @@ int main(int argc, char* argv[])
 
 
 	//Create the window
-	GLFWwindow* window = glfwCreateWindow(width, height, "Exercise 07", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Moebius", nullptr, nullptr);
 	if (window == NULL)
 	{
 		glfwTerminate();

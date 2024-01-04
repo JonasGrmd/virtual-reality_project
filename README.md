@@ -1,5 +1,5 @@
 # virtual-reality_project
-To lauch the game click simply run the project.
+To lauch the game, run the executable.
 
 Playability (AZERTY keyboard) :
 - press "Z" to go forward
