@@ -107,7 +107,7 @@ float carMass = 500.0f;
 
 //Path and properties definition for OpenGL object
 char sphere_path[] = PATH_TO_OBJECTS "/sphere_smooth.obj";
-glm::vec3 sphere_materialColour = glm::vec3(1.0, 0.5, 0.5);
+glm::vec3 sphere_materialColour = glm::vec3(191.0/255.0, 78.0/255.0, 100.0/255.0);
 glm::vec3 shooted_sphere_materialColour = glm::vec3(1.0, 0.0, 0.0);
 
 char cylinder_path[] = PATH_TO_OBJECTS "/Shooting_cylinder.obj";
@@ -119,12 +119,12 @@ glm::vec3 shooted_box_materialColour = glm::vec3(0.012, 0.902, 0.8);
 char box_texture_path[] = PATH_TO_OBJECTS "/box_texture.obj";
 
 char wheels_r06_h05_path[] = PATH_TO_OBJECTS "/wheels_r06_h05.obj";
-glm::vec3 wheels_materialColour = glm::vec3(0.6, 0.6, 0.6);
+glm::vec3 wheels_materialColour = glm::vec3(68.0 / 255.0, 63.0 / 255.0, 110.0 / 255.0);
 
 char canon_path[] = PATH_TO_OBJECTS "/Shooting_cylinder.obj";
-glm::vec3 canon_materialColour = glm::vec3(0.4, 0.4, 0.4);
+glm::vec3 canon_materialColour = glm::vec3(68.0/255.0, 63.0/255.0, 110.0/255.0);
 
-glm::vec3 player_materialColour = glm::vec3(0.0, 0.0, 1.0);
+glm::vec3 player_materialColour = glm::vec3(224.0 / 255.0, 109.0 / 255.0, 86.0 / 255.0);
 
 // Initialization of Bullet world and creation of simple bullet object further in the code is done 
 // by following the tutorial : https://www.youtube.com/watch?v=wbu5MdsFYko&list=PLcK9hW4d2_QLgo4OeJJuPRN9_UQ9Zp6zC&ab_channel=thecplusplusguy
@@ -438,7 +438,7 @@ int main(int argc, char* argv[])
 	world->addRigidBody(rigidBodyGround);
 
 	// OpenGL object for the ground 
-	glm::vec3 ground_materialColour = glm::vec3(0.922, 0.765, 0.349);
+	glm::vec3 ground_materialColour = glm::vec3(232.0 / 255.0, 171.0 / 255.0, 44.0 / 255.0);
 	Object ground(ground_path, 1.0, 0.0, 32.0, 0.0, ground_materialColour);
 	ground.makeObject(shader, simpleDepthShader, false);
 
@@ -478,7 +478,7 @@ int main(int argc, char* argv[])
 	//Bullet and OpenGL columns of cubes
 	//--------------------------------------------------------------------------------------------------
 	char cube_path[] = PATH_TO_OBJECTS "/cube.obj";
-	glm::vec3 cube_materialColour = glm::vec3(0.85, 0.0, 0.85); 
+	glm::vec3 cube_materialColour = glm::vec3(240.0 / 255.0, 215.0 / 255.0, 105.0 / 255.0);
 	float cube_mass = 0.8;
 	float y_it = 0.0;
 
@@ -805,7 +805,7 @@ int main(int argc, char* argv[])
 	double yposIn;
 
 	//Ambient light
-	float ambient = 0.2;
+	float ambient = 0.5;
 
 	//Camera matrices
 	glm::mat4 view = camera.GetViewMatrix();
@@ -896,7 +896,7 @@ int main(int argc, char* argv[])
 		// 0. create depth cubemap transformation matrices
 		// -----------------------------------------------
 		float near_plane = 1.0f;
-		float far_plane = 500.0f;
+		float far_plane = 250.0f;
 
 		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
 		std::vector<glm::mat4> shadowTransforms;
@@ -1029,6 +1029,7 @@ int main(int argc, char* argv[])
 
 		screenShader.use();
 		screenShader.setBool("blur", blur_effect);
+		screenShader.setFloat("far_plane", far_plane);
 
 		glBindVertexArray(quadVAO);
 

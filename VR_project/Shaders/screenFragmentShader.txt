@@ -5,6 +5,8 @@ out vec4 FragColor;
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
 
+uniform float far_plane;
+
 uniform sampler2D depthTexture;
 
 uniform vec3 backgroundColor;
@@ -75,6 +77,9 @@ void main()
     vec3 col = initialColor - vec3(EdgeDetectionGrad);
 
     float depth = texture(depthTexture, TexCoords.st).r;
+    depth*=far_plane;
+    if (depth < 50.0) depth = 50.0;
+    depth/=far_plane;
 
     if (blur == 1.0) col = mix(col, backgroundColor, depth);
 
