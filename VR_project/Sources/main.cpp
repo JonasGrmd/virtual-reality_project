@@ -126,6 +126,9 @@ glm::vec3 canon_materialColour = glm::vec3(0.4, 0.4, 0.4);
 
 glm::vec3 player_materialColour = glm::vec3(0.0, 0.0, 1.0);
 
+// Initialization of Bullet world and creation of simple bullet object further in the code is done 
+// by following the tutorial : https://www.youtube.com/watch?v=wbu5MdsFYko&list=PLcK9hW4d2_QLgo4OeJJuPRN9_UQ9Zp6zC&ab_channel=thecplusplusguy
+
 btDynamicsWorld* world;
 btDispatcher* dispatcher;
 btCollisionConfiguration* collisionConfig;
